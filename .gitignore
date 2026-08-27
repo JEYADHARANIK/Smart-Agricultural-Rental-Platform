@@ -1,12 +1,24 @@
-# Smart Agricultural Rental Platform
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
 
-A MERN Stack application for managing agricultural equipment rentals with AI-powered scheduling, weather-aware booking, and predictive maintenance.
+# Environment variables
+.env
+*.env
+client/.env
+server/.env
 
-## Tech Stack
+# Build outputs
+dist/
+build/
+client/dist/
 
-- React.js
-- Node.js
-- Express.js
-- MongoDB
-- Tailwind CSS
-- JWT Authentication
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating System Files
+.DS_Store
+Thumbs.db

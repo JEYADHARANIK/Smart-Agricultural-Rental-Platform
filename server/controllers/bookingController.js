@@ -165,11 +165,22 @@ const getMyBookings = async (req, res) => {
 // @access  Private/Admin
 const getAllBookings = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, customerId } = req.query;
     let query = {};
 
     if (status && status !== 'All') {
       query.status = status;
+    }
+
+    // Optional: filter by a specific customer ID (used by Customer Management module)
+    if (customerId) {
+      if (!mongoose.Types.ObjectId.isValid(customerId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid customer ID format',
+        });
+      }
+      query.customer = customerId;
     }
 
     const bookings = await Booking.find(query)

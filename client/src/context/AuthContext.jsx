@@ -66,6 +66,38 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Google Login handler
+  const googleLogin = async (credential) => {
+    try {
+      const res = await API.post('/auth/google', { credential });
+      if (res.data.success) {
+        const { token: authToken, user: userData } = res.data;
+        localStorage.setItem('token', authToken);
+        setToken(authToken);
+        setUser(userData);
+        return { success: true, user: userData };
+      } else if (res.data.isNewUser) {
+        return {
+          success: false,
+          isNewUser: true,
+          message: res.data.message || 'Account not found. Please create an account to continue.',
+          googleUser: res.data.googleUser,
+        };
+      }
+    } catch (err) {
+      if (err.response?.data?.isNewUser) {
+        return {
+          success: false,
+          isNewUser: true,
+          message: err.response.data.message || 'Account not found. Please create an account to continue.',
+          googleUser: err.response.data.googleUser,
+        };
+      }
+      const message = err.response?.data?.message || 'Google sign-in failed. Please try again.';
+      return { success: false, message };
+    }
+  };
+
   // Logout handler
   const logout = () => {
     localStorage.removeItem('token');
@@ -81,6 +113,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        googleLogin,
         logout,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',

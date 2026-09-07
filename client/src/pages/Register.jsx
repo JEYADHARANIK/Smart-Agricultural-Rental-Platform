@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, User, Mail, Lock, Phone, MapPin, Home, AlertCircle, Loader2, Tractor } from 'lucide-react';
+import { UserPlus, User, Mail, Lock, Phone, MapPin, Home, AlertCircle, Loader2, Tractor, Info } from 'lucide-react';
 
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const pageLocation = useLocation();
+
+  const fromGoogle = pageLocation.state?.fromGoogle || false;
+  const googleUser = pageLocation.state?.googleUser || null;
+  const warningMessage = pageLocation.state?.warningMessage || 'Account not found. Please create an account to continue.';
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: googleUser?.name || '',
+    email: googleUser?.email || '',
     password: '',
     confirmPassword: '',
     phone: '',
     location: '',
     address: '',
+    googleId: googleUser?.googleId || '',
   });
 
   const [error, setError] = useState('');
@@ -61,11 +67,13 @@ const Register = () => {
     // Payload sent to backend without confirmPassword or role selector
     const payload = {
       name,
-      email,
+      email: email.toLowerCase(),
       password,
       phone,
       location,
       address,
+      googleId: formData.googleId || undefined,
+      authProvider: fromGoogle ? 'google' : 'local',
     };
 
     const result = await register(payload);
@@ -96,6 +104,23 @@ const Register = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl">
         <div className="bg-white py-8 px-4 shadow-xl border border-slate-200 sm:rounded-2xl sm:px-10">
+
+          {/* Warning banner for new Google Sign-In user */}
+          {fromGoogle && (
+            <div className="mb-6 bg-amber-50 border border-amber-200/90 text-amber-900 px-4 py-3.5 rounded-xl text-sm flex items-start space-x-3 shadow-xs">
+              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900">
+                  {warningMessage}
+                </p>
+                {googleUser?.email && (
+                  <p className="text-xs text-amber-700 mt-1 font-medium">
+                    Completing registration for verified Google account: <span className="font-bold text-amber-900">{googleUser.email}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2">
@@ -136,10 +161,13 @@ const Register = () => {
                   name="email"
                   type="email"
                   required
+                  readOnly={fromGoogle}
                   value={email}
                   onChange={handleChange}
                   placeholder="farmer@example.com"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                  className={`block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900 ${
+                    fromGoogle ? 'bg-slate-100 cursor-not-allowed text-slate-600 font-medium' : ''
+                  }`}
                 />
               </div>
             </div>

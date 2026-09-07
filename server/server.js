@@ -4,7 +4,8 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: require('path').resolve(__dirname, '.env') });
+
 
 // Connect to database
 connectDB();
@@ -29,6 +30,9 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/equipment', require('./routes/equipmentRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+
 
 // 404 Handler
 app.use((req, res) => {

@@ -32,6 +32,11 @@ app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/maintenance', require('./routes/maintenanceRoutes'));
+app.use('/api/scheduler', require('./routes/schedulerRoutes'));
+app.use('/api/chatbot', require('./routes/chatbotRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
 
 // 404 Handler

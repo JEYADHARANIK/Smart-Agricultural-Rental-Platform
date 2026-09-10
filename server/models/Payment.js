@@ -8,6 +8,24 @@ const paymentSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    // Razorpay fields
+    razorpayOrderId: {
+      type: String,
+      default: '',
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: '',
+    },
+    razorpaySignature: {
+      type: String,
+      default: '',
+    },
+    gateway: {
+      type: String,
+      enum: ['razorpay', 'simulated'],
+      default: 'simulated',
+    },
     booking: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',
@@ -49,6 +67,12 @@ const paymentSchema = new mongoose.Schema(
     paymentDate: {
       type: Date,
       default: Date.now,
+    },
+    amountBreakdown: {
+      baseAmount: { type: Number, default: 0 },
+      transportCharge: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      finalAmount: { type: Number, default: 0 },
     },
     adminNotes: {
       type: String,

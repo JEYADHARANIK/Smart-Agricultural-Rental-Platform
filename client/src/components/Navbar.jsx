@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/axios';
 import {
   Tractor,
   LayoutDashboard,
@@ -12,7 +13,9 @@ import {
   UserPlus,
   Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Bell,
+  Bot
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -20,6 +23,30 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Track unread notification count for the bell badge
+  useEffect(() => {
+    let cancelled = false;
+    const fetchUnread = async () => {
+      if (!isAuthenticated) {
+        setUnreadCount(0);
+        return;
+      }
+      try {
+        const res = await api.get('/notifications', { params: { limit: 1 } });
+        if (!cancelled && res.data.success) {
+          setUnreadCount(res.data.unreadCount || 0);
+        }
+      } catch {
+        // ignore — badge simply stays hidden
+      }
+    };
+    fetchUnread();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, location.pathname, user?._id]);
 
   const handleLogout = () => {
     logout();
@@ -30,25 +57,25 @@ const Navbar = () => {
 
   const linkClass = (path) =>
     `flex items-center space-x-2 text-sm font-medium transition-colors px-3 py-2 rounded-lg ${isActive(path)
-      ? 'bg-emerald-700 text-white shadow-sm'
-      : 'text-emerald-100 hover:bg-emerald-800/60 hover:text-white'
+      ? 'bg-forest-600 text-white'
+      : 'text-forest-100 hover:bg-forest-800 hover:text-white'
     }`;
 
   return (
-    <nav className="bg-emerald-900 border-b border-emerald-800 text-white sticky top-0 z-50 shadow-md">
+    <nav className="bg-forest-900 border-b border-forest-800 text-white sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
 
           {/* Logo / Branding */}
           <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <Tractor className="w-6 h-6 text-emerald-950" />
+            <div className="w-10 h-10 rounded-xl bg-forest-500 flex items-center justify-center group-hover:bg-forest-400 transition-colors">
+              <Tractor className="w-6 h-6 text-white" />
             </div>
             <div>
               <span className="font-bold text-lg tracking-tight block leading-tight text-white">
-                AgriRent<span className="text-emerald-400">Hub</span>
+                AgriRent<span className="text-forest-300">Hub</span>
               </span>
-              <span className="text-[10px] text-emerald-300 font-medium tracking-wider uppercase block">
+              <span className="text-[10px] text-forest-300 font-medium tracking-wider uppercase block">
                 Smart Equipment Platform
               </span>
             </div>
@@ -67,7 +94,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-semibold px-4 py-2 rounded-lg text-sm transition-all shadow-md flex items-center space-x-1"
+                  className="bg-forest-500 hover:bg-forest-400 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-1"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Register</span>
@@ -87,6 +114,10 @@ const Navbar = () => {
                 <Link to="/admin/bookings" className={linkClass('/admin/bookings')}>
                   <CalendarCheck className="w-4 h-4" />
                   <span>Bookings</span>
+                </Link>
+                <Link to="/admin/maintenance" className={linkClass('/admin/maintenance')}>
+                  <Wrench className="w-4 h-4" />
+                  <span>Maintenance</span>
                 </Link>
                 <Link to="/admin/customers" className={linkClass('/admin/customers')}>
                   <Users className="w-4 h-4" />
@@ -111,21 +142,44 @@ const Navbar = () => {
               </>
             )}
 
+            {/* Shared links for authenticated users */}
+            {isAuthenticated && (
+              <>
+                <Link to="/assistant" className={linkClass('/assistant')}>
+                  <Bot className="w-4 h-4" />
+                  <span>Assistant</span>
+                </Link>
+                <Link to="/notifications" className={`relative ${linkClass('/notifications').replace(
+                  'text-sm font-medium transition-colors px-3 py-2 rounded-lg ',
+                  ''
+                )}`}>
+                  <Bell className="w-4 h-4" />
+                  <span>Notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 shadow">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+
             {/* Auth Info & Logout Button */}
             {isAuthenticated && (
-              <div className="flex items-center pl-4 border-l border-emerald-800 space-x-3">
+              <div className="flex items-center pl-4 border-l border-forest-800 space-x-3">
                 <div className="text-right">
                   <div className="text-sm font-semibold text-white leading-none">
                     {user?.name}
                   </div>
-                  <div className="text-[11px] text-emerald-300 font-medium capitalize mt-1 flex items-center justify-end space-x-1">
+                  <div className="text-[11px] text-forest-300 font-medium capitalize mt-1 flex items-center justify-end space-x-1">
                     {user?.role === 'admin' && <ShieldCheck className="w-3 h-3 text-amber-400 inline" />}
                     <span>{user?.role}</span>
                   </div>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="bg-emerald-950/80 hover:bg-rose-900/80 text-emerald-200 hover:text-rose-200 p-2 rounded-lg transition-colors border border-emerald-700/50"
+                  aria-label="Logout"
+                  className="bg-forest-950/60 hover:bg-rose-900 text-forest-200 hover:text-rose-200 p-2 rounded-lg transition-colors border border-forest-800"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -138,7 +192,10 @@ const Navbar = () => {
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-emerald-200 hover:text-white p-2 rounded-lg focus:outline-none"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation-menu"
+              className="text-forest-200 hover:text-white p-2 rounded-lg focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -148,7 +205,7 @@ const Navbar = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-emerald-950 border-t border-emerald-800 px-4 pt-3 pb-4 space-y-2">
+        <div id="mobile-navigation-menu" className="md:hidden bg-forest-950 border-t border-forest-800 px-4 pt-3 pb-4 space-y-2">
           {!isAuthenticated ? (
             <>
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className={linkClass('/')}>
@@ -161,7 +218,7 @@ const Navbar = () => {
               <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-semibold px-4 py-2 rounded-lg text-sm block mt-2"
+                className="w-full text-center bg-forest-500 hover:bg-forest-400 text-white font-semibold px-4 py-2 rounded-lg text-sm block mt-2"
               >
                 Register
               </Link>
@@ -177,15 +234,24 @@ const Navbar = () => {
               <Link to="/admin/bookings" onClick={() => setMobileMenuOpen(false)} className={linkClass('/admin/bookings')}>
                 Bookings
               </Link>
+              <Link to="/admin/maintenance" onClick={() => setMobileMenuOpen(false)} className={linkClass('/admin/maintenance')}>
+                Maintenance
+              </Link>
               <Link to="/admin/customers" onClick={() => setMobileMenuOpen(false)} className={linkClass('/admin/customers')}>
                 Customers
+              </Link>
+              <Link to="/assistant" onClick={() => setMobileMenuOpen(false)} className={linkClass('/assistant')}>
+                Farmer Assistant
+              </Link>
+              <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className={linkClass('/notifications')}>
+                Notifications{unreadCount > 0 ? ` (${unreadCount})` : ''}
               </Link>
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="w-full text-left text-rose-300 hover:bg-rose-950/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 mt-2"
+                className="w-full text-left text-rose-300 hover:bg-forest-800 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 mt-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout ({user?.name})</span>
@@ -202,12 +268,18 @@ const Navbar = () => {
               <Link to="/bookings" onClick={() => setMobileMenuOpen(false)} className={linkClass('/bookings')}>
                 My Bookings
               </Link>
+              <Link to="/assistant" onClick={() => setMobileMenuOpen(false)} className={linkClass('/assistant')}>
+                Farmer Assistant
+              </Link>
+              <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className={linkClass('/notifications')}>
+                Notifications{unreadCount > 0 ? ` (${unreadCount})` : ''}
+              </Link>
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="w-full text-left text-rose-300 hover:bg-rose-950/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 mt-2"
+                className="w-full text-left text-rose-300 hover:bg-forest-800 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 mt-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout ({user?.name})</span>

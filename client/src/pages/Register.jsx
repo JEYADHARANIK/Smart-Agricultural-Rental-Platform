@@ -87,23 +87,23 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-cream-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg text-white">
-            <Tractor className="w-7 h-7" />
+          <div className="w-14 h-14 rounded-2xl bg-forest-900 flex items-center justify-center shadow-md text-forest-300 hover:scale-105 transition-transform duration-200">
+            <Tractor className="w-8 h-8" />
           </div>
         </div>
-        <h2 className="mt-4 text-center text-3xl font-extrabold text-slate-900">
+        <h2 className="mt-4 text-center text-2xl sm:text-3xl font-bold tracking-tight text-stone-900">
           Create a Customer Account
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
+        <p className="mt-2 text-center text-sm text-stone-600">
           Register to browse and rent agricultural equipment
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl">
-        <div className="bg-white py-8 px-4 shadow-xl border border-slate-200 sm:rounded-2xl sm:px-10">
+        <div className="bg-white py-8 px-4 shadow-sm border border-stone-200 sm:rounded-2xl sm:px-10">
 
           {/* Warning banner for new Google Sign-In user */}
           {fromGoogle && (
@@ -123,7 +123,7 @@ const Register = () => {
           )}
 
           {error && (
-            <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2">
+            <div role="alert" className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2">
               <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -133,9 +133,9 @@ const Register = () => {
 
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-700">Full Name *</label>
+              <label className="block text-sm font-medium text-stone-700">Full Name *</label>
               <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                   <User className="w-5 h-5" />
                 </div>
                 <input
@@ -145,16 +145,16 @@ const Register = () => {
                   value={name}
                   onChange={handleChange}
                   placeholder="John Doe"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                 />
               </div>
             </div>
 
             {/* Email Address */}
             <div>
-              <label className="block text-sm font-medium text-slate-700">Email Address *</label>
+              <label className="block text-sm font-medium text-stone-700">Email Address *</label>
               <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                   <Mail className="w-5 h-5" />
                 </div>
                 <input
@@ -165,8 +165,8 @@ const Register = () => {
                   value={email}
                   onChange={handleChange}
                   placeholder="farmer@example.com"
-                  className={`block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900 ${
-                    fromGoogle ? 'bg-slate-100 cursor-not-allowed text-slate-600 font-medium' : ''
+                  className={`block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800 ${
+                    fromGoogle ? 'bg-stone-100 cursor-not-allowed text-stone-600 font-medium' : ''
                   }`}
                 />
               </div>
@@ -175,9 +175,9 @@ const Register = () => {
             {/* Passwords Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Password *</label>
+                <label className="block text-sm font-medium text-stone-700">Password *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <Lock className="w-5 h-5" />
                   </div>
                   <input
@@ -187,15 +187,15 @@ const Register = () => {
                     value={password}
                     onChange={handleChange}
                     placeholder="Min 6 characters"
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                    className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700">Confirm Password *</label>
+                <label className="block text-sm font-medium text-stone-700">Confirm Password *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <Lock className="w-5 h-5" />
                   </div>
                   <input
@@ -205,7 +205,7 @@ const Register = () => {
                     value={confirmPassword}
                     onChange={handleChange}
                     placeholder="Re-enter password"
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                    className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                   />
                 </div>
               </div>
@@ -214,9 +214,9 @@ const Register = () => {
             {/* Phone & Location Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Phone Number *</label>
+                <label className="block text-sm font-medium text-stone-700">Phone Number *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <Phone className="w-5 h-5" />
                   </div>
                   <input
@@ -226,15 +226,15 @@ const Register = () => {
                     value={phone}
                     onChange={handleChange}
                     placeholder="+1 (555) 000-0000"
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                    className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700">Location / City *</label>
+                <label className="block text-sm font-medium text-stone-700">Location / City *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <input
@@ -244,7 +244,7 @@ const Register = () => {
                     value={location}
                     onChange={handleChange}
                     placeholder="e.g. Springfield"
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                    className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                   />
                 </div>
               </div>
@@ -252,9 +252,9 @@ const Register = () => {
 
             {/* Address */}
             <div>
-              <label className="block text-sm font-medium text-slate-700">Farm Address *</label>
+              <label className="block text-sm font-medium text-stone-700">Farm Address *</label>
               <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                   <Home className="w-5 h-5" />
                 </div>
                 <input
@@ -264,7 +264,7 @@ const Register = () => {
                   value={address}
                   onChange={handleChange}
                   placeholder="123 Rural Route, Green Valley"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-slate-900"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                 />
               </div>
             </div>
@@ -274,7 +274,7 @@ const Register = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-emerald-950 bg-emerald-500 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors disabled:opacity-50"
+                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-700 transition-colors disabled:opacity-50"
               >
                 {loading ? (
                   <>
@@ -292,10 +292,10 @@ const Register = () => {
           </form>
 
           {/* Login Link */}
-          <div className="mt-6 text-center border-t border-slate-100 pt-6">
-            <p className="text-sm text-slate-600">
+          <div className="mt-6 text-center border-t border-stone-100 pt-6">
+            <p className="text-sm text-stone-600">
               Already have an account?{' '}
-              <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-500">
+              <Link to="/login" className="font-semibold text-forest-700 hover:text-forest-600">
                 Sign In
               </Link>
             </p>

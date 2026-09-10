@@ -14,6 +14,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import Equipment from './pages/Equipment';
 import Bookings from './pages/Bookings';
 import Customers from './pages/Customers';
+import MaintenanceDashboard from './pages/MaintenanceDashboard';
+import FarmerAssistant from './pages/FarmerAssistant';
+import Notifications from './pages/Notifications';
 
 function App() {
   return (
@@ -73,6 +76,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/admin/maintenance"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <MaintenanceDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* General Protected Routes (Accessible by both customer & admin) */}
               <Route
@@ -88,6 +99,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Bookings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/assistant"
+                element={
+                  <ProtectedRoute>
+                    <FarmerAssistant />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
                   </ProtectedRoute>
                 }
               />

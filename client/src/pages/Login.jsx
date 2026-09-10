@@ -186,12 +186,12 @@ const Login = () => {
   }, [ensureGsiInitialized, renderGoogleButton]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#faf9f5] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
+    <div className="min-h-[calc(100vh-4rem)] bg-cream-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       
       {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#1c3a27] flex items-center justify-center shadow-md text-amber-400 hover:scale-105 transition-transform duration-200">
+          <div className="w-14 h-14 rounded-2xl bg-forest-900 flex items-center justify-center shadow-md text-forest-300 hover:scale-105 transition-transform duration-200">
             <Tractor className="w-8 h-8" />
           </div>
         </div>
@@ -209,7 +209,7 @@ const Login = () => {
 
           {/* Inline Error Message */}
           {error && (
-            <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2.5 shadow-sm">
+            <div role="alert" className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2.5 shadow-sm">
               <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
               <span className="font-medium">{error}</span>
             </div>
@@ -217,7 +217,7 @@ const Login = () => {
 
           {/* Optional Information Message */}
           {infoMessage && (
-            <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm flex items-start space-x-2.5 shadow-sm">
+            <div role="status" className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm flex items-start space-x-2.5 shadow-sm">
               <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <span className="font-medium">{infoMessage}</span>
             </div>
@@ -243,7 +243,7 @@ const Login = () => {
                   value={email}
                   onChange={handleChange}
                   placeholder="farmer@example.com"
-                  className="block w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1c3a27]/20 focus:border-[#1c3a27] transition-all bg-stone-50/30"
+                  className="block w-full pl-11 pr-4 py-3 border border-stone-300 rounded-xl text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 transition-colors bg-white"
                 />
               </div>
             </div>
@@ -256,7 +256,7 @@ const Login = () => {
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs font-medium text-[#1c3a27] hover:text-[#285438] hover:underline focus:outline-none transition-colors"
+                  className="text-xs font-medium text-forest-800 hover:text-forest-600 hover:underline focus:outline-none transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -275,7 +275,7 @@ const Login = () => {
                   value={password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1c3a27]/20 focus:border-[#1c3a27] transition-all bg-stone-50/30"
+                  className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 transition-colors bg-white"
                 />
                 
                 {/* Password Visibility Toggle */}
@@ -299,18 +299,18 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-xs text-sm font-semibold text-white bg-[#1c3a27] hover:bg-[#254d34] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1c3a27] transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-700 transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="w-full flex flex-col items-center justify-center py-0.5">
                     {/* Animated Tractor Track */}
                     <div className="relative w-44 h-5 overflow-hidden flex items-center">
-                      <div className="w-full border-b-2 border-dashed border-emerald-300/40 absolute bottom-1" />
+                      <div className="w-full border-b-2 border-dashed border-forest-300/40 absolute bottom-1" />
                       <div className="animate-tractor-drive absolute bottom-0.5 left-0">
-                        <Tractor className="w-5 h-5 text-amber-400 drop-shadow-xs" />
+                        <Tractor className="w-5 h-5 text-forest-300 drop-shadow-xs" />
                       </div>
                     </div>
-                    <span className="text-xs font-semibold tracking-wide text-emerald-100 mt-1">
+                    <span className="text-xs font-semibold tracking-wide text-forest-100 mt-1">
                       Signing you in...
                     </span>
                   </div>
@@ -339,9 +339,9 @@ const Login = () => {
             {googleLoading ? (
               <div className="w-full flex flex-col items-center justify-center py-3 px-4 border border-stone-300 rounded-xl shadow-2xs bg-white">
                 <div className="relative w-44 h-5 overflow-hidden flex items-center">
-                  <div className="w-full border-b-2 border-dashed border-amber-400/50 absolute bottom-1" />
+                  <div className="w-full border-b-2 border-dashed border-forest-400/40 absolute bottom-1" />
                   <div className="animate-tractor-drive absolute bottom-0.5 left-0">
-                    <Tractor className="w-5 h-5 text-[#1c3a27] drop-shadow-xs" />
+                    <Tractor className="w-5 h-5 text-forest-900 drop-shadow-xs" />
                   </div>
                 </div>
                 <span className="text-xs font-semibold tracking-wide text-stone-700 mt-1">
@@ -357,7 +357,7 @@ const Login = () => {
           <div className="mt-8 text-center border-t border-stone-100 pt-6">
             <p className="text-sm text-stone-600 font-medium">
               Don't have an account?{' '}
-              <Link to="/register" className="font-semibold text-[#1c3a27] hover:text-[#285438] hover:underline transition-colors">
+              <Link to="/register" className="font-semibold text-forest-800 hover:text-forest-600 hover:underline transition-colors">
                 Create an account
               </Link>
             </p>

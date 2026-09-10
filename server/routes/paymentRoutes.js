@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   processPayment,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   getMyPayments,
   getAllPayments,
   getPaymentById,
@@ -14,6 +16,8 @@ const { authorize } = require('../middleware/roleMiddleware');
 router.use(protect);
 
 // Named routes FIRST before parametric routes
+router.post('/create-order', authorize('customer'), createRazorpayOrder);
+router.post('/verify', authorize('customer'), verifyRazorpayPayment);
 router.post('/process', authorize('customer'), processPayment);
 router.get('/my-payments', getMyPayments);
 router.get('/', authorize('admin'), getAllPayments);

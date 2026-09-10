@@ -1,13 +1,177 @@
 const mongoose = require('mongoose');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
+const razorpayService = require('../utils/razorpayService');
+const { sendNotification } = require('../utils/notificationService');
 
-// @desc    Process a simulated payment for an approved booking
+// Create a unique transaction number
+const generateTransactionNumber = () => {
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  return `TXN-${randomSuffix}`;
+};
+
+// @desc    Create a Razorpay order for an approved booking
+// @route   POST /api/payments/create-order
+// @access  Private (Customer only)
+const createRazorpayOrder = async (req, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Administrators cannot process customer payments' });
+    }
+
+    const { bookingId } = req.body;
+    if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid bookingId' });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking record not found' });
+    }
+    if (booking.customer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to pay for this booking' });
+    }
+    if (booking.status !== 'approved') {
+      return res.status(400).json({ success: false, message: `Payment is only available for approved bookings (current: ${booking.status})` });
+    }
+
+    const existingPaid = await Payment.findOne({ booking: booking._id, paymentStatus: 'paid' });
+    if (existingPaid) {
+      return res.status(400).json({ success: false, message: 'Payment has already been completed for this booking' });
+    }
+
+    const amount = booking.totalPrice;
+
+    // If Razorpay not configured, return test-mode instructions to the frontend.
+    if (!razorpayService.isConfigured()) {
+      return res.status(200).json({
+        success: true,
+        testMode: true,
+        message: 'Razorpay is not configured. The simulated payment mode will be used for development/testing.',
+        amount,
+        currency: 'INR',
+        bookingId: booking._id,
+      });
+    }
+
+    const order = await razorpayService.createOrder({
+      amount,
+      currency: 'INR',
+      receipt: booking.bookingNumber,
+    });
+
+    return res.status(200).json({
+      success: true,
+      testMode: false,
+      order,
+      keyId: razorpayService.getKeyId(),
+      amount,
+      currency: 'INR',
+      bookingId: booking._id,
+    });
+  } catch (error) {
+    console.error('Create Razorpay order error:', error);
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Server error creating payment order' });
+  }
+};
+
+// @desc    Verify Razorpay payment signature and finalize payment
+// @route   POST /api/payments/verify
+// @access  Private (Customer only)
+const verifyRazorpayPayment = async (req, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Administrators cannot process customer payments' });
+    }
+
+    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature, paymentMethod } = req.body;
+
+    if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid bookingId' });
+    }
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ success: false, message: 'Razorpay order, payment and signature are required' });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking record not found' });
+    }
+    if (booking.customer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to pay for this booking' });
+    }
+
+    // Secure server-side signature verification
+    const valid = razorpayService.verifySignature({
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+    });
+
+    if (!valid) {
+      return res.status(400).json({ success: false, message: 'Payment signature verification failed. Payment not recorded.' });
+    }
+
+    const existingPaid = await Payment.findOne({ booking: booking._id, paymentStatus: 'paid' });
+    if (existingPaid) {
+      return res.status(400).json({ success: false, message: 'Payment has already been completed for this booking' });
+    }
+
+    const amount = booking.totalPrice;
+
+    const payment = await Payment.create({
+      transactionNumber: generateTransactionNumber(),
+      booking: booking._id,
+      customer: req.user._id,
+      amount,
+      paymentMethod: paymentMethod || 'UPI / Mobile Wallet',
+      paymentStatus: 'paid',
+      paymentDate: new Date(),
+      gateway: 'razorpay',
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      amountBreakdown: booking.billing || {
+        baseAmount: amount,
+        transportCharge: 0,
+        discount: 0,
+        finalAmount: amount,
+      },
+    });
+
+    const populatedPayment = await Payment.findById(payment._id)
+      .populate({
+        path: 'booking',
+        select: 'bookingNumber invoiceNumber startDate endDate totalDays dailyRate totalPrice status billing',
+        populate: { path: 'equipment', select: 'name category dailyRate imageUrl location' },
+      })
+      .populate('customer', 'name email phone');
+
+    await sendNotification({
+      user: req.user,
+      type: 'payment_success',
+      title: 'Payment successful',
+      message: `Your payment of ₹${amount} for booking ${booking.bookingNumber} was successful.`,
+      data: { bookingId: booking._id, transactionNumber: payment.transactionNumber },
+      sendSms: true,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Payment verified and recorded successfully',
+      payment: populatedPayment,
+    });
+  } catch (error) {
+    console.error('Verify Razorpay payment error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Server error verifying payment' });
+  }
+};
+
+// @desc    Process a payment in simulated/test mode (for approved bookings when Razorpay is unavailable)
 // @route   POST /api/payments/process
 // @access  Private (Customer only)
 const processPayment = async (req, res) => {
   try {
-    // Admin check: Admins cannot process customer payments
     if (req.user.role === 'admin') {
       return res.status(403).json({
         success: false,
@@ -18,37 +182,19 @@ const processPayment = async (req, res) => {
     const { bookingId, paymentMethod } = req.body;
 
     if (!bookingId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid bookingId',
-      });
+      return res.status(400).json({ success: false, message: 'Please provide a valid bookingId' });
     }
-
     if (!mongoose.Types.ObjectId.isValid(bookingId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid booking ID format',
-      });
+      return res.status(400).json({ success: false, message: 'Invalid booking ID format' });
     }
 
-    // Load booking from MongoDB
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking record not found',
-      });
+      return res.status(404).json({ success: false, message: 'Booking record not found' });
     }
-
-    // Verify booking belongs to authenticated customer
     if (booking.customer.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to process payment for another customer\'s booking',
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized to process payment for another customer\'s booking' });
     }
-
-    // Verify booking status is "approved"
     if (booking.status !== 'approved') {
       return res.status(400).json({
         success: false,
@@ -57,54 +203,59 @@ const processPayment = async (req, res) => {
     }
 
     // Prevent duplicate successful payment for the same booking
-    const existingPaid = await Payment.findOne({
-      booking: booking._id,
-      paymentStatus: 'paid',
-    });
-
+    const existingPaid = await Payment.findOne({ booking: booking._id, paymentStatus: 'paid' });
     if (existingPaid) {
+      return res.status(400).json({ success: false, message: 'Payment has already been completed for this booking' });
+    }
+
+    // If Razorpay is configured, do not allow the simulated path silently.
+    if (razorpayService.isConfigured()) {
       return res.status(400).json({
         success: false,
-        message: 'Payment has already been completed for this booking',
+        message: 'Live payment gateway is enabled. Please use the Razorpay checkout flow.',
       });
     }
 
-    // Amount is derived server-side from booking.totalPrice (never trust client amount)
+    // Amount is derived server-side from booking.totalPrice
     const amount = booking.totalPrice;
 
-    // Generate unique transaction number
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const transactionNumber = `TXN-${randomSuffix}`;
-
     const payment = await Payment.create({
-      transactionNumber,
+      transactionNumber: generateTransactionNumber(),
       booking: booking._id,
       customer: req.user._id,
       amount,
       paymentMethod: paymentMethod || 'UPI / Mobile Wallet',
       paymentStatus: 'paid',
       paymentDate: new Date(),
+      gateway: 'simulated',
+      amountBreakdown: booking.billing || { baseAmount: amount, transportCharge: 0, discount: 0, finalAmount: amount },
     });
 
     const populatedPayment = await Payment.findById(payment._id)
       .populate({
         path: 'booking',
-        select: 'bookingNumber startDate endDate totalDays dailyRate totalPrice status',
+        select: 'bookingNumber invoiceNumber startDate endDate totalDays dailyRate totalPrice status billing',
         populate: { path: 'equipment', select: 'name category dailyRate imageUrl location' },
       })
       .populate('customer', 'name email phone');
 
+    await sendNotification({
+      user: req.user,
+      type: 'payment_success',
+      title: 'Payment successful',
+      message: `Your payment of ${amount} for booking ${booking.bookingNumber} was successful (simulated).`,
+      data: { bookingId: booking._id, transactionNumber: payment.transactionNumber },
+      sendSms: true,
+    });
+
     return res.status(201).json({
       success: true,
-      message: 'Payment processed successfully',
+      message: 'Payment processed successfully (simulated mode)',
       payment: populatedPayment,
     });
   } catch (error) {
     console.error('Process payment error:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Server error processing payment',
-    });
+    return res.status(500).json({ success: false, message: error.message || 'Server error processing payment' });
   }
 };
 
@@ -123,23 +274,16 @@ const getMyPayments = async (req, res) => {
     const payments = await Payment.find(query)
       .populate({
         path: 'booking',
-        select: 'bookingNumber startDate endDate totalDays dailyRate totalPrice status',
+        select: 'bookingNumber invoiceNumber startDate endDate totalDays dailyRate totalPrice status billing',
         populate: { path: 'equipment', select: 'name category dailyRate imageUrl location' },
       })
       .populate('customer', 'name email phone')
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      success: true,
-      count: payments.length,
-      payments,
-    });
+    return res.status(200).json({ success: true, count: payments.length, payments });
   } catch (error) {
     console.error('Get my payments error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error retrieving your payments',
-    });
+    return res.status(500).json({ success: false, message: 'Server error retrieving your payments' });
   }
 };
 
@@ -148,13 +292,15 @@ const getMyPayments = async (req, res) => {
 // @access  Private/Admin
 const getAllPayments = async (req, res) => {
   try {
-    const { bookingId, status } = req.query;
+    const { bookingId, status, customerId } = req.query;
     let query = {};
 
     if (bookingId && mongoose.Types.ObjectId.isValid(bookingId)) {
       query.booking = bookingId;
     }
-
+    if (customerId && mongoose.Types.ObjectId.isValid(customerId)) {
+      query.customer = customerId;
+    }
     if (status && status !== 'All') {
       query.paymentStatus = status;
     }
@@ -162,23 +308,16 @@ const getAllPayments = async (req, res) => {
     const payments = await Payment.find(query)
       .populate({
         path: 'booking',
-        select: 'bookingNumber startDate endDate totalDays dailyRate totalPrice status',
+        select: 'bookingNumber invoiceNumber startDate endDate totalDays dailyRate totalPrice status billing',
         populate: { path: 'equipment', select: 'name category dailyRate imageUrl location' },
       })
       .populate('customer', 'name email phone location address')
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      success: true,
-      count: payments.length,
-      payments,
-    });
+    return res.status(200).json({ success: true, count: payments.length, payments });
   } catch (error) {
     console.error('Get all payments error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error retrieving payment transactions',
-    });
+    return res.status(500).json({ success: false, message: 'Server error retrieving payment transactions' });
   }
 };
 
@@ -190,45 +329,28 @@ const getPaymentById = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment ID format',
-      });
+      return res.status(400).json({ success: false, message: 'Invalid payment ID format' });
     }
 
     const payment = await Payment.findById(id)
       .populate({
         path: 'booking',
-        select: 'bookingNumber startDate endDate totalDays dailyRate totalPrice status',
+        select: 'bookingNumber invoiceNumber startDate endDate totalDays dailyRate totalPrice status billing',
         populate: { path: 'equipment', select: 'name category dailyRate imageUrl location' },
       })
       .populate('customer', 'name email phone location address');
 
     if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment record not found',
-      });
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
     }
-
-    // Customer ownership check
     if (req.user.role !== 'admin' && payment.customer._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to view this payment record',
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized to view this payment record' });
     }
 
-    return res.status(200).json({
-      success: true,
-      payment,
-    });
+    return res.status(200).json({ success: true, payment });
   } catch (error) {
     console.error('Get payment by ID error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error retrieving payment details',
-    });
+    return res.status(500).json({ success: false, message: 'Server error retrieving payment details' });
   }
 };
 
@@ -241,22 +363,13 @@ const refundPayment = async (req, res) => {
     const { adminNotes } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment ID format',
-      });
+      return res.status(400).json({ success: false, message: 'Invalid payment ID format' });
     }
 
     const payment = await Payment.findById(id);
-
     if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment record not found',
-      });
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
     }
-
-    // Allowed refund state: must be currently 'paid'
     if (payment.paymentStatus !== 'paid') {
       return res.status(400).json({
         success: false,
@@ -268,36 +381,36 @@ const refundPayment = async (req, res) => {
     if (adminNotes !== undefined) {
       payment.adminNotes = adminNotes;
     }
-
     await payment.save();
 
-    // CRITICAL REQUIREMENT: Do NOT modify or cancel the associated booking document here.
-    // Payment and Booking remain separate state machines.
+    await sendNotification({
+      user: { _id: payment.customer },
+      type: 'payment_refunded',
+      title: 'Payment refunded',
+      message: `A refund was issued for transaction ${payment.transactionNumber}.`,
+      data: { paymentId: payment._id, transactionNumber: payment.transactionNumber },
+      sendSms: true,
+    });
 
     const updatedPayment = await Payment.findById(id)
       .populate({
         path: 'booking',
-        select: 'bookingNumber startDate endDate totalDays dailyRate totalPrice status',
+        select: 'bookingNumber invoiceNumber startDate endDate totalDays dailyRate totalPrice status billing',
         populate: { path: 'equipment', select: 'name category dailyRate imageUrl location' },
       })
       .populate('customer', 'name email phone');
 
-    return res.status(200).json({
-      success: true,
-      message: 'Payment refunded successfully',
-      payment: updatedPayment,
-    });
+    return res.status(200).json({ success: true, message: 'Payment refunded successfully', payment: updatedPayment });
   } catch (error) {
     console.error('Refund payment error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error refunding payment',
-    });
+    return res.status(500).json({ success: false, message: 'Server error refunding payment' });
   }
 };
 
 module.exports = {
   processPayment,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   getMyPayments,
   getAllPayments,
   getPaymentById,

@@ -50,11 +50,52 @@ const equipmentSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    coordinates: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+    },
     imageUrl: {
       type: String,
       trim: true,
       default: '',
     },
+    // Maintenance & usage tracking
+    usageHours: {
+      type: Number,
+      default: 0,
+      min: [0, 'Usage hours cannot be negative'],
+    },
+    lastMaintenanceDate: {
+      type: Date,
+      default: null,
+    },
+    maintenanceIntervalDays: {
+      type: Number,
+      default: 90,
+      min: [1, 'Maintenance interval must be at least 1 day'],
+    },
+    nextMaintenanceDue: {
+      type: Date,
+      default: null,
+    },
+    maintenanceType: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    maintenanceNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    maintenanceHistory: [
+      {
+        date: { type: Date, required: true },
+        type: { type: String, default: '' },
+        notes: { type: String, default: '' },
+        usageHoursAtService: { type: Number, default: 0 },
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

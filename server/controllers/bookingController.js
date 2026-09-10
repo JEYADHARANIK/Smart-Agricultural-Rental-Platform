@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Equipment = require('../models/Equipment');
+const { getForecast } = require('../utils/weatherService');
+const { evaluateWeather, normalizeDate, dayKey } = require('../utils/schedulingEngine');
+const { sendNotification } = require('../utils/notificationService');
 
 // @desc    Create a new rental booking request
 // @route   POST /api/bookings
@@ -15,7 +18,7 @@ const createBooking = async (req, res) => {
       });
     }
 
-    const { equipmentId, startDate, endDate } = req.body;
+    const { equipmentId, startDate, endDate, transportCharge, discount, transportNotes } = req.body;
 
     if (!equipmentId || !startDate || !endDate) {
       return res.status(400).json({
@@ -85,7 +88,15 @@ const createBooking = async (req, res) => {
 
     // Daily rate snapshot from Equipment model
     const dailyRate = equipment.dailyRate;
-    const totalPrice = totalDays * dailyRate;
+
+    // ---- Server-side billing validation (never trust the client) ----
+    const parsedTransport = transportCharge !== undefined ? Number(transportCharge) : 0;
+    const parsedDiscount = discount !== undefined ? Number(discount) : 0;
+    const transport = isNaN(parsedTransport) || parsedTransport < 0 ? 0 : parsedTransport;
+    const disc = isNaN(parsedDiscount) || parsedDiscount < 0 ? 0 : parsedDiscount;
+    const baseAmount = totalDays * dailyRate;
+    const usableDiscount = Math.min(disc, baseAmount);
+    const finalAmount = baseAmount + transport - usableDiscount;
 
     // Date collision detection (pending, approved, active block conflicting dates)
     const existingCollision = await Booking.findOne({
@@ -102,25 +113,74 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Generate human-readable booking number
+    // ---- Weather-aware slot evaluation (graceful when forecast unavailable) ----
+    let weatherSlot = {
+      classification: 'UNKNOWN',
+      summary: 'Weather forecast unavailable at booking time.',
+      reasons: [],
+      checkedAt: new Date(),
+    };
+
+    try {
+      const forecast = await getForecast({
+        lat: equipment.coordinates && equipment.coordinates.lat,
+        lng: equipment.coordinates && equipment.coordinates.lng,
+        locationText: equipment.location,
+        days: totalDays + 1,
+      });
+      const requestSlot = { start, end };
+      const weatherResult = evaluateWeather(forecast, requestSlot);
+      weatherSlot = {
+        classification: weatherResult.classification || 'UNKNOWN',
+        summary: weatherResult.summary || '',
+        reasons: weatherResult.reasons || [],
+        checkedAt: new Date(),
+      };
+    } catch (weatherError) {
+      console.error('Weather analysis at booking error:', weatherError?.message || weatherError);
+    }
+
+    // Generate human-readable booking number & invoice number
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const bookingNumber = `BK-${randomSuffix}`;
+    const randomInvoice = Math.floor(10000 + Math.random() * 90000);
+    const dateStamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const invoiceNumber = `INV-${dateStamp}-${randomInvoice}`;
 
     const booking = await Booking.create({
       bookingNumber,
+      invoiceNumber,
       equipment: equipment._id,
       customer: req.user._id,
       startDate: start,
       endDate: end,
       totalDays,
       dailyRate,
-      totalPrice,
+      totalPrice: finalAmount,
+      billing: {
+        baseAmount,
+        transportCharge: transport,
+        discount: usableDiscount,
+        finalAmount,
+      },
+      transportNotes: transportNotes || '',
+      weatherSlot,
       status: 'pending',
     });
 
     const populatedBooking = await Booking.findById(booking._id)
       .populate('equipment', 'name category dailyRate imageUrl location')
       .populate('customer', 'name email phone');
+
+    // ---- Notifications ----
+    await sendNotification({
+      user: req.user,
+      type: 'booking_submitted',
+      title: 'Booking request submitted',
+      message: `Your booking request ${booking.bookingNumber} for ${equipment.name} has been submitted and is awaiting approval.`,
+      data: { bookingId: booking._id, bookingNumber },
+      sendSms: true,
+    });
 
     return res.status(201).json({
       success: true,
@@ -141,7 +201,21 @@ const createBooking = async (req, res) => {
 // @access  Private (Customer / Admin)
 const getMyBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ customer: req.user._id })
+    const { upcoming, past } = req.query;
+    const query = { customer: req.user._id };
+    const today = new Date();
+
+    if (req.user.role === 'admin') {
+      query.customer = req.query.customerId || req.user._id;
+    }
+
+    if (upcoming === 'true') {
+      query.endDate = { $gte: today };
+    } else if (past === 'true') {
+      query.endDate = { $lt: today };
+    }
+
+    const bookings = await Booking.find(query)
       .populate('equipment', 'name category dailyRate imageUrl location status')
       .populate('customer', 'name email phone')
       .sort({ createdAt: -1 });
@@ -165,14 +239,13 @@ const getMyBookings = async (req, res) => {
 // @access  Private/Admin
 const getAllBookings = async (req, res) => {
   try {
-    const { status, customerId } = req.query;
+    const { status, customerId, from, to } = req.query;
     let query = {};
 
     if (status && status !== 'All') {
       query.status = status;
     }
 
-    // Optional: filter by a specific customer ID (used by Customer Management module)
     if (customerId) {
       if (!mongoose.Types.ObjectId.isValid(customerId)) {
         return res.status(400).json({
@@ -181,6 +254,12 @@ const getAllBookings = async (req, res) => {
         });
       }
       query.customer = customerId;
+    }
+
+    if (from || to) {
+      query.startDate = {};
+      if (from) query.startDate.$gte = new Date(from);
+      if (to) query.startDate.$lte = new Date(to);
     }
 
     const bookings = await Booking.find(query)
@@ -248,7 +327,7 @@ const getBookingById = async (req, res) => {
   }
 };
 
-// @desc    Update booking status (Approve / Reject)
+// @desc    Update booking status (Approve / Reject / Activate / Complete)
 // @route   PATCH /api/bookings/:id/status
 // @access  Private/Admin
 const updateBookingStatus = async (req, res) => {
@@ -302,6 +381,23 @@ const updateBookingStatus = async (req, res) => {
       });
     }
 
+    // Approving a booking must re-validate conflict to prevent double-booking
+    if (status === 'approved') {
+      const collision = await Booking.findOne({
+        _id: { $ne: booking._id },
+        equipment: booking.equipment,
+        status: { $in: ['pending', 'approved', 'active'] },
+        startDate: { $lte: booking.endDate },
+        endDate: { $gte: booking.startDate },
+      });
+      if (collision) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot approve: equipment is already reserved by booking ${collision.bookingNumber} for overlapping dates.`,
+        });
+      }
+    }
+
     booking.status = status;
     if (adminRemarks !== undefined) {
       booking.adminRemarks = adminRemarks;
@@ -312,6 +408,40 @@ const updateBookingStatus = async (req, res) => {
     const updatedBooking = await Booking.findById(id)
       .populate('equipment', 'name category dailyRate imageUrl location')
       .populate('customer', 'name email phone');
+
+    // Update equipment status when a booking becomes active
+    if (status === 'active') {
+      await Equipment.findByIdAndUpdate(booking.equipment, { status: 'Rented' });
+    } else if (status === 'completed' || status === 'cancelled' || status === 'rejected') {
+      const activeBookings = await Booking.countDocuments({
+        equipment: booking.equipment,
+        status: { $in: ['active', 'approved'] },
+        _id: { $ne: booking._id },
+      });
+      if (activeBookings === 0) {
+        await Equipment.findByIdAndUpdate(booking.equipment, { status: 'Available' });
+      }
+    }
+
+    // Notify the customer
+    const equipmentName = updatedBooking.equipment?.name || 'the equipment';
+    const typeMap = {
+      approved: { type: 'booking_approved', title: 'Booking approved', message: `Great news! Your booking ${booking.bookingNumber} for ${equipmentName} has been approved.` },
+      rejected: { type: 'booking_rejected', title: 'Booking rejected', message: `Your booking ${booking.bookingNumber} for ${equipmentName} was not approved. ${adminRemarks ? 'Reason: ' + adminRemarks : ''}` },
+      active: { type: 'schedule_change', title: 'Rental started', message: `Your rental ${booking.bookingNumber} for ${equipmentName} is now active.` },
+      completed: { type: 'system', title: 'Rental completed', message: `Your rental ${booking.bookingNumber} for ${equipmentName} is complete. Thank you!` },
+    };
+    const notif = typeMap[status];
+    if (notif) {
+      await sendNotification({
+        user: { _id: booking.customer },
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        data: { bookingId: booking._id, bookingNumber: booking.bookingNumber },
+        sendSms: true,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -368,6 +498,15 @@ const cancelBooking = async (req, res) => {
 
     booking.status = 'cancelled';
     await booking.save();
+
+    await sendNotification({
+      user: req.user,
+      type: 'booking_cancelled',
+      title: 'Booking cancelled',
+      message: `Your booking ${booking.bookingNumber} has been cancelled.`,
+      data: { bookingId: booking._id, bookingNumber: booking.bookingNumber },
+      sendSms: true,
+    });
 
     return res.status(200).json({
       success: true,

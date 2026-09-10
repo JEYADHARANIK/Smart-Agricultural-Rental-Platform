@@ -63,12 +63,12 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#faf9f5] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
+    <div className="min-h-[calc(100vh-4rem)] bg-cream-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       
       {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#1c3a27] flex items-center justify-center shadow-md text-amber-400 hover:scale-105 transition-transform duration-200">
+          <div className="w-14 h-14 rounded-2xl bg-forest-900 flex items-center justify-center shadow-md text-forest-300 hover:scale-105 transition-transform duration-200">
             <Tractor className="w-8 h-8" />
           </div>
         </div>
@@ -87,8 +87,8 @@ const ResetPassword = () => {
           {success ? (
             /* Success View */
             <div className="text-center py-2">
-              <div className="mx-auto w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-7 h-7 text-[#1c3a27]" />
+              <div className="mx-auto w-12 h-12 bg-forest-100 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-7 h-7 text-forest-800" />
               </div>
               <h3 className="text-xl font-bold text-stone-900 mb-2">Password reset successful</h3>
               <p className="text-sm text-stone-600 font-medium mb-6">
@@ -96,7 +96,7 @@ const ResetPassword = () => {
               </p>
               <Link
                 to="/login"
-                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-xs text-sm font-semibold text-white bg-[#1c3a27] hover:bg-[#254d34] transition-colors w-full"
+                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 transition-colors w-full"
               >
                 <span>Back to Login</span>
               </Link>
@@ -113,7 +113,7 @@ const ResetPassword = () => {
               </p>
               <Link
                 to="/forgot-password"
-                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-xs text-sm font-semibold text-white bg-[#1c3a27] hover:bg-[#254d34] transition-colors w-full mb-3"
+                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 transition-colors w-full mb-3"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 <span>Request New Reset Link</span>
@@ -130,7 +130,7 @@ const ResetPassword = () => {
             /* Form View */
             <>
               {error && (
-                <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2.5 shadow-sm">
+                <div role="alert" className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start space-x-2.5 shadow-sm">
                   <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                   <span className="font-medium">{error}</span>
                 </div>
@@ -158,7 +158,7 @@ const ResetPassword = () => {
                         if (error) setError('');
                       }}
                       placeholder="Min 6 characters"
-                      className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1c3a27]/20 focus:border-[#1c3a27] transition-all bg-stone-50/30"
+                      className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 transition-colors bg-white"
                     />
                     <button
                       type="button"
@@ -192,7 +192,7 @@ const ResetPassword = () => {
                         if (error) setError('');
                       }}
                       placeholder="Re-enter new password"
-                      className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1c3a27]/20 focus:border-[#1c3a27] transition-all bg-stone-50/30"
+                      className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 transition-colors bg-white"
                     />
                     <button
                       type="button"
@@ -210,17 +210,17 @@ const ResetPassword = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-xs text-sm font-semibold text-white bg-[#1c3a27] hover:bg-[#254d34] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1c3a27] transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
+                    className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-700 transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <div className="w-full flex flex-col items-center justify-center py-0.5">
                         <div className="relative w-44 h-5 overflow-hidden flex items-center">
-                          <div className="w-full border-b-2 border-dashed border-emerald-300/40 absolute bottom-1" />
+                          <div className="w-full border-b-2 border-dashed border-forest-300/40 absolute bottom-1" />
                           <div className="animate-tractor-drive absolute bottom-0.5 left-0">
-                            <Tractor className="w-5 h-5 text-amber-400 drop-shadow-xs" />
+                            <Tractor className="w-5 h-5 text-forest-300 drop-shadow-xs" />
                           </div>
                         </div>
-                        <span className="text-xs font-semibold tracking-wide text-emerald-100 mt-1">
+                        <span className="text-xs font-semibold tracking-wide text-forest-100 mt-1">
                           Resetting password...
                         </span>
                       </div>
@@ -235,7 +235,7 @@ const ResetPassword = () => {
               <div className="mt-8 text-center border-t border-stone-100 pt-6">
                 <Link
                   to="/login"
-                  className="inline-flex items-center text-sm font-semibold text-[#1c3a27] hover:text-[#285438] hover:underline transition-colors"
+                  className="inline-flex items-center text-sm font-semibold text-forest-800 hover:text-forest-600 hover:underline transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4 mr-1.5" />
                   <span>Back to Login</span>

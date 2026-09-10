@@ -15,10 +15,12 @@ import {
   CreditCard,
   DollarSign,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import useModal from '../hooks/useModal';
 
 const STATUS_FILTERS = ['All', 'pending', 'approved', 'rejected', 'active', 'completed', 'cancelled'];
 
@@ -50,6 +52,7 @@ const Bookings = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('UPI / Mobile Wallet');
   const [paymentError, setPaymentError] = useState(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState('select'); // 'select' | 'simulated'
 
   // Admin Refund Modal
   const [refundingPayment, setRefundingPayment] = useState(null);
@@ -161,7 +164,7 @@ const Bookings = () => {
     }
   };
 
-  // Customer Process Payment Submit
+  // Customer Process Payment Submit (simulated / test mode)
   const handleProcessPayment = async (e) => {
     e.preventDefault();
     if (!payingBooking) return;
@@ -187,6 +190,112 @@ const Bookings = () => {
       setPaymentError(err.response?.data?.message || 'Failed to process payment.');
     } finally {
       setIsPaymentSubmitting(false);
+    }
+  };
+
+  // Dynamically load the Razorpay checkout script
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // Open the secured Razorpay checkout for an approved booking
+  const openRazorpayCheckout = async (orderData) => {
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      setPaymentError('Razorpay secure checkout could not be loaded. Please try again later.');
+      setCheckoutStep('simulated');
+      setIsPaymentSubmitting(false);
+      return;
+    }
+
+    const options = {
+      key: orderData.keyId,
+      amount: Math.round(orderData.amount * 100),
+      currency: orderData.currency || 'INR',
+      name: 'AgriRentHub',
+      description: `Rental booking #${payingBooking.bookingNumber}`,
+      order_id: orderData.order.id,
+      handler: async (response) => {
+        try {
+          const verifyRes = await api.post('/payments/verify', {
+            bookingId: orderData.bookingId,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+            paymentMethod: selectedPaymentMethod,
+          });
+
+          if (verifyRes.data.success) {
+            setSuccessMessage(
+              `Payment completed successfully! Reference: ${verifyRes.data.payment.transactionNumber}`
+            );
+            setPayingBooking(null);
+            fetchBookingsAndPayments();
+          } else {
+            setPaymentError(verifyRes.data.message || 'Payment verification failed.');
+            setCheckoutStep('simulated');
+          }
+        } catch (err) {
+          console.error('Razorpay verification error:', err);
+          setPaymentError(
+            err.response?.data?.message ||
+              'Payment could not be verified. If money was deducted, keep your Razorpay payment ID and contact support.'
+          );
+          setCheckoutStep('simulated');
+        } finally {
+          setIsPaymentSubmitting(false);
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          setIsPaymentSubmitting(false);
+        },
+      },
+      prefill: {
+        name: user?.name || '',
+        email: user?.email || '',
+        contact: user?.phone || '',
+      },
+      theme: { color: '#1f442f' },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  };
+
+  // Start secure checkout (creates a server-side Razorpay order)
+  const handleStartCheckout = async (e) => {
+    e.preventDefault();
+    if (!payingBooking) return;
+
+    try {
+      setIsPaymentSubmitting(true);
+      setPaymentError(null);
+
+      const res = await api.post('/payments/create-order', { bookingId: payingBooking._id });
+
+      if (res.data.success) {
+        if (res.data.testMode) {
+          // Razorpay not configured: fall back to the simulated development payment.
+          setIsPaymentSubmitting(false);
+          setCheckoutStep('simulated');
+          setPaymentError(null);
+          return;
+        }
+        await openRazorpayCheckout(res.data);
+      }
+    } catch (err) {
+      console.error('Create checkout order error:', err);
+      setPaymentError(err.response?.data?.message || 'Failed to start secure checkout.');
+      setIsPaymentSubmitting(false);
+      setCheckoutStep('simulated');
     }
   };
 
@@ -225,42 +334,58 @@ const Bookings = () => {
     return item.status === statusFilter;
   });
 
+  const { dialogProps: paymentDialogProps } = useModal({
+    open: !!payingBooking,
+    onClose: () => setPayingBooking(null),
+    labelledBy: 'payment-modal-title',
+  });
+  const { dialogProps: rejectDialogProps } = useModal({
+    open: !!rejectingBooking,
+    onClose: () => setRejectingBooking(null),
+    labelledBy: 'reject-modal-title',
+  });
+  const { dialogProps: refundDialogProps } = useModal({
+    open: !!refundingPayment,
+    onClose: () => setRefundingPayment(null),
+    labelledBy: 'refund-modal-title',
+  });
+
   return (
-    <div className="bg-slate-50 min-h-screen py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="page-shell">
+      <div className="page-container">
 
         {/* Global Feedback Banners */}
         {successMessage && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl shadow-sm flex items-center justify-between animate-fadeIn">
+          <div role="status" className="bg-forest-50 border border-forest-200 text-forest-800 p-4 rounded-xl shadow-sm flex items-center justify-between animate-fadeIn">
             <div className="flex items-center space-x-2 text-sm font-medium">
-              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+              <CheckCircle className="w-5 h-5 text-forest-600 shrink-0" />
               <span>{successMessage}</span>
             </div>
-            <button onClick={() => setSuccessMessage(null)} className="text-emerald-500 hover:text-emerald-700">
+            <button onClick={() => setSuccessMessage(null)} aria-label="Dismiss message" className="text-forest-600 hover:text-forest-800">
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+          <div role="alert" className="alert-error">
             <div className="flex items-center space-x-2 text-sm font-medium">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
               <span>{error}</span>
             </div>
-            <button onClick={() => setError(null)} className="text-rose-500 hover:text-rose-700">
+            <button onClick={() => setError(null)} aria-label="Dismiss message" className="text-rose-500 hover:text-rose-700">
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
         {/* Page Header */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="page-header">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="page-title">
               {isAdmin ? 'Rental Bookings Operations' : 'My Equipment Reservations'}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="page-subtitle">
               {isAdmin
                 ? 'Review, approve, or reject incoming machinery rental requests and manage transaction refunds.'
                 : 'Track status, rental periods, payments, and complete digital checkout for approved reservations.'}
@@ -268,14 +393,14 @@ const Bookings = () => {
           </div>
 
           {/* Status Filter Bar */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto text-xs bg-slate-100 p-1.5 rounded-xl border border-slate-200 shrink-0">
+          <div className="flex items-center space-x-1.5 overflow-x-auto text-xs bg-stone-50 p-1.5 rounded-xl border border-stone-200 shrink-0">
             {STATUS_FILTERS.map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={`px-3 py-1.5 rounded-lg font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
+                    : 'text-stone-500 hover:text-stone-900'
                   }`}
               >
                 {s}
@@ -286,15 +411,15 @@ const Bookings = () => {
 
         {/* Content Table / Card Container */}
         {loading ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm space-y-4">
-            <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mx-auto" />
-            <p className="text-sm font-medium text-slate-600">Loading bookings and transaction records from database...</p>
+          <div className="state-block">
+            <Loader2 className="state-icon animate-spin" />
+            <p className="text-sm font-medium text-stone-600">Loading bookings and transaction records from database...</p>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm space-y-4">
-            <Clock className="w-16 h-16 text-slate-300 mx-auto" />
-            <h3 className="text-lg font-bold text-slate-800">No Booking Records</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
+          <div className="state-block">
+            <Clock className="w-16 h-16 text-forest-200 mx-auto" />
+            <h3 className="text-lg font-bold text-stone-800">No Booking Records</h3>
+            <p className="text-xs text-stone-500 max-w-md mx-auto">
               {statusFilter !== 'All'
                 ? `No bookings found matching status "${statusFilter}".`
                 : isAdmin
@@ -303,31 +428,31 @@ const Bookings = () => {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-slate-900 text-lg">
+          <div className="card overflow-hidden">
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <h3 className="font-bold text-stone-900 text-lg">
                 {isAdmin ? 'Fleet Rental Requests & Payment Status' : 'Your Reservation History'}
               </h3>
-              <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-3 py-1 rounded-full border border-slate-200">
+              <span className="text-xs bg-stone-100 text-stone-600 font-semibold px-3 py-1 rounded-full border border-stone-200">
                 {filteredBookings.length} {filteredBookings.length === 1 ? 'record' : 'records'}
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
+            <div className="table-wrap">
+              <table className="w-full text-left text-sm text-stone-600">
+                <thead className="table-head">
                   <tr>
-                    <th className="px-6 py-3.5">Booking ID</th>
-                    <th className="px-6 py-3.5">Equipment</th>
-                    <th className="px-6 py-3.5">{isAdmin ? 'Customer' : 'Daily Rate'}</th>
-                    <th className="px-6 py-3.5">Rental Period</th>
-                    <th className="px-6 py-3.5">Total Cost</th>
-                    <th className="px-6 py-3.5">Booking Status</th>
-                    <th className="px-6 py-3.5">Payment Record</th>
-                    <th className="px-6 py-3.5">Actions</th>
+                    <th className="table-th px-6">Booking ID</th>
+                    <th className="table-th px-6">Equipment</th>
+                    <th className="table-th px-6">{isAdmin ? 'Customer' : 'Daily Rate'}</th>
+                    <th className="table-th px-6">Rental Period</th>
+                    <th className="table-th px-6">Total Cost</th>
+                    <th className="table-th px-6">Booking Status</th>
+                    <th className="table-th px-6">Payment Record</th>
+                    <th className="table-th px-6">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-stone-100">
                   {filteredBookings.map((item) => {
                     const payment = paymentMap[item._id];
                     const isPaid = payment && payment.paymentStatus === 'paid';
@@ -335,45 +460,45 @@ const Bookings = () => {
                     const isEligibleForPayment = item.status === 'approved' && !isPaid;
 
                     // Booking Status Badge
-                    let statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
+                    let statusBadgeClass = 'badge-amber';
                     let StatusIcon = Clock;
 
                     if (item.status === 'approved') {
-                      statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                      statusBadgeClass = 'badge-green';
                       StatusIcon = CalendarCheck;
                     } else if (item.status === 'active') {
-                      statusBadgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
+                      statusBadgeClass = 'badge-sky';
                       StatusIcon = Tractor;
                     } else if (item.status === 'completed') {
-                      statusBadgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                      statusBadgeClass = 'badge-slate';
                       StatusIcon = CheckCircle;
                     } else if (item.status === 'rejected') {
-                      statusBadgeClass = 'bg-rose-100 text-rose-800 border-rose-200';
+                      statusBadgeClass = 'badge-red';
                       StatusIcon = AlertCircle;
                     } else if (item.status === 'cancelled') {
-                      statusBadgeClass = 'bg-slate-100 text-slate-500 border-slate-200';
+                      statusBadgeClass = 'badge-slate';
                       StatusIcon = Ban;
                     }
 
                     return (
-                      <tr key={item._id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={item._id} className="hover:bg-stone-50/80 transition-colors">
 
                         {/* Booking Number */}
-                        <td className="px-6 py-4 font-mono font-bold text-slate-800 text-xs shrink-0">
+                        <td className="table-td px-6 py-4 font-mono font-bold text-stone-800 text-xs shrink-0">
                           #{item.bookingNumber}
                         </td>
 
                         {/* Equipment Info */}
-                        <td className="px-6 py-4 font-medium text-slate-900">
+                        <td className="table-td px-6 py-4 font-medium text-stone-900">
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg shrink-0">
+                            <div className="p-2 bg-forest-50 text-forest-600 rounded-lg shrink-0">
                               <Tractor className="w-4 h-4" />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 block line-clamp-1">
+                              <span className="font-bold text-stone-900 block line-clamp-1">
                                 {item.equipment?.name || 'Equipment Machine'}
                               </span>
-                              <span className="text-[11px] text-slate-400 font-normal">
+                              <span className="text-[11px] text-stone-400 font-normal">
                                 {item.equipment?.category}
                               </span>
                             </div>
@@ -381,42 +506,42 @@ const Bookings = () => {
                         </td>
 
                         {/* Customer / Rate */}
-                        <td className="px-6 py-4">
+                        <td className="table-td px-6 py-4">
                           {isAdmin ? (
                             <div>
-                              <span className="font-bold text-slate-900 block text-xs">
+                              <span className="font-bold text-stone-900 block text-xs">
                                 {item.customer?.name || 'Farmer'}
                               </span>
-                              <span className="text-[11px] text-slate-500 block">
+                              <span className="text-[11px] text-stone-500 block">
                                 {item.customer?.email}
                               </span>
                             </div>
                           ) : (
-                            <span className="font-bold text-slate-800 text-xs">
+                            <span className="font-bold text-stone-800 text-xs">
                               ${item.dailyRate}/day
                             </span>
                           )}
                         </td>
 
                         {/* Rental Period */}
-                        <td className="px-6 py-4 text-xs space-y-0.5">
-                          <div className="font-semibold text-slate-800">
+                        <td className="table-td px-6 py-4 text-xs space-y-0.5">
+                          <div className="font-semibold text-stone-800">
                             {formatDate(item.startDate)} - {formatDate(item.endDate)}
                           </div>
-                          <div className="text-[11px] text-slate-400 font-medium">
+                          <div className="text-[11px] text-stone-400 font-medium">
                             {item.totalDays} {item.totalDays === 1 ? 'day' : 'days'}
                           </div>
                         </td>
 
                         {/* Total Cost */}
-                        <td className="px-6 py-4 font-black text-emerald-600 text-sm">
-                          ${item.totalPrice}
+                        <td className="table-td px-6 py-4 font-black text-forest-600 text-sm">
+                          ₹{item.totalPrice}
                         </td>
 
                         {/* Booking Status Badge */}
-                        <td className="px-6 py-4">
+                        <td className="table-td px-6 py-4">
                           <div className="space-y-1">
-                            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border inline-flex items-center space-x-1.5 capitalize ${statusBadgeClass}`}>
+                            <span className={`badge capitalize ${statusBadgeClass}`}>
                               <StatusIcon className="w-3.5 h-3.5" />
                               <span>{item.status}</span>
                             </span>
@@ -429,38 +554,38 @@ const Bookings = () => {
                         </td>
 
                         {/* Payment Record Status Column */}
-                        <td className="px-6 py-4">
+                        <td className="table-td px-6 py-4">
                           {isPaid ? (
                             <div className="space-y-0.5">
-                              <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center space-x-1">
-                                <CreditCard className="w-3 h-3 text-emerald-600" />
+                              <span className="badge-green">
+                                <CreditCard className="w-3 h-3 text-forest-600" />
                                 <span>Paid</span>
                               </span>
-                              <span className="text-[10px] font-mono text-slate-500 block font-semibold">
+                              <span className="text-[10px] font-mono text-stone-500 block font-semibold">
                                 {payment.transactionNumber}
                               </span>
                             </div>
                           ) : isRefunded ? (
                             <div className="space-y-0.5">
-                              <span className="bg-purple-100 text-purple-800 border border-purple-200 text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center space-x-1">
+                              <span className="badge-purple">
                                 <RotateCcw className="w-3 h-3 text-purple-600" />
                                 <span>Refunded</span>
                               </span>
-                              <span className="text-[10px] font-mono text-slate-500 block font-semibold">
+                              <span className="text-[10px] font-mono text-stone-500 block font-semibold">
                                 {payment.transactionNumber}
                               </span>
                             </div>
                           ) : item.status === 'approved' ? (
-                            <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold px-2 py-0.5 rounded-md">
-                              Unpaid
+                            <span className="badge-amber">
+                              <span>Unpaid</span>
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-400 font-normal">--</span>
+                            <span className="text-xs text-stone-400 font-normal">--</span>
                           )}
                         </td>
 
                         {/* Actions Column */}
-                        <td className="px-6 py-4">
+                        <td className="table-td px-6 py-4">
                           {isAdmin ? (
                             <div className="flex items-center space-x-2">
                               {item.status === 'pending' && (
@@ -468,7 +593,7 @@ const Bookings = () => {
                                   <button
                                     onClick={() => handleUpdateStatus(item._id, 'approved')}
                                     disabled={isActionSubmitting}
-                                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                                    className="bg-forest-700 hover:bg-forest-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                                   >
                                     Approve
                                   </button>
@@ -485,7 +610,7 @@ const Bookings = () => {
                                 <button
                                   onClick={() => handleUpdateStatus(item._id, 'active')}
                                   disabled={isActionSubmitting}
-                                  className="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                                  className="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
                                 >
                                   Mark Active
                                 </button>
@@ -494,7 +619,7 @@ const Bookings = () => {
                                 <button
                                   onClick={() => handleUpdateStatus(item._id, 'completed')}
                                   disabled={isActionSubmitting}
-                                  className="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                                  className="bg-stone-700 hover:bg-stone-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
                                 >
                                   Complete
                                 </button>
@@ -521,11 +646,12 @@ const Bookings = () => {
                                     setPayingBooking(item);
                                     setSelectedPaymentMethod('UPI / Mobile Wallet');
                                     setPaymentError(null);
+                                    setCheckoutStep('select');
                                   }}
-                                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-extrabold shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
+                                  className="bg-forest-700 hover:bg-forest-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-extrabold shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
                                 >
                                   <CreditCard className="w-3.5 h-3.5" />
-                                  <span>Pay Now (${item.totalPrice})</span>
+                                  <span>Pay Now (₹{item.totalPrice})</span>
                                 </button>
                               )}
 
@@ -534,7 +660,7 @@ const Bookings = () => {
                                 <button
                                   onClick={() => handleCancelBooking(item)}
                                   disabled={isActionSubmitting}
-                                  className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
+                                  className="bg-stone-100 hover:bg-rose-50 text-stone-600 hover:text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-stone-200 cursor-pointer disabled:opacity-50"
                                 >
                                   Cancel Request
                                 </button>
@@ -556,22 +682,27 @@ const Bookings = () => {
 
       {/* Customer Payment Checkout Modal */}
       {payingBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 relative">
+        <div {...paymentDialogProps} className={`${paymentDialogProps.className} fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-900/50 animate-fadeIn`}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-stone-200 space-y-5 relative max-h-[90vh] overflow-y-auto">
 
             {/* Modal Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                  Simulated Payment Checkout
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                  checkoutStep === 'simulated'
+                    ? 'text-amber-800 bg-amber-50 border border-amber-200'
+                    : 'text-forest-700 bg-forest-50 border border-forest-200'
+                }`}>
+                  {checkoutStep === 'simulated' ? 'Development Checkout (Preserve Data)' : 'Secure Payment Checkout'}
                 </span>
-                <h2 className="text-lg font-bold text-slate-900 mt-1">
+                <h2 id="payment-modal-title" className="text-lg font-bold text-stone-900 mt-1">
                   Pay for {payingBooking.equipment?.name || 'Equipment Rental'}
                 </h2>
               </div>
               <button
                 onClick={() => setPayingBooking(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                aria-label="Close dialog"
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -579,36 +710,39 @@ const Bookings = () => {
 
             {/* Error Banner */}
             {paymentError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs font-medium flex items-center space-x-2">
+              <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs font-medium flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>{paymentError}</span>
               </div>
             )}
 
             {/* Booking Summary Box */}
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2 text-xs text-slate-700">
+            <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-2 text-xs text-stone-700">
               <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Booking Number:</span>
-                <span className="font-mono font-bold text-slate-900">#{payingBooking.bookingNumber}</span>
+                <span className="text-stone-500 font-medium">Booking Number:</span>
+                <span className="font-mono font-bold text-stone-900">#{payingBooking.bookingNumber}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Rental Period:</span>
-                <span className="font-semibold text-slate-900">{formatDate(payingBooking.startDate)} - {formatDate(payingBooking.endDate)}</span>
+                <span className="text-stone-500 font-medium">Rental Period:</span>
+                <span className="font-semibold text-stone-900">{formatDate(payingBooking.startDate)} - {formatDate(payingBooking.endDate)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Total Days:</span>
-                <span className="font-semibold text-slate-900">{payingBooking.totalDays} {payingBooking.totalDays === 1 ? 'day' : 'days'}</span>
+                <span className="text-stone-500 font-medium">Total Days:</span>
+                <span className="font-semibold text-stone-900">{payingBooking.totalDays} {payingBooking.totalDays === 1 ? 'day' : 'days'}</span>
               </div>
-              <div className="flex justify-between items-baseline pt-2 border-t border-slate-200">
-                <span className="text-slate-600 font-bold uppercase tracking-wider text-[11px]">Total Amount Due:</span>
-                <span className="text-xl font-black text-emerald-700">${payingBooking.totalPrice}</span>
+              <div className="flex justify-between items-baseline pt-2 border-t border-stone-200">
+                <span className="text-stone-600 font-bold uppercase tracking-wider text-[11px]">Total Amount Due:</span>
+                <span className="text-xl font-black text-forest-700">₹{payingBooking.totalPrice}</span>
               </div>
             </div>
 
             {/* Payment Method Form */}
-            <form onSubmit={handleProcessPayment} className="space-y-4">
+            <form
+              onSubmit={checkoutStep === 'simulated' ? handleProcessPayment : handleStartCheckout}
+              className="space-y-4"
+            >
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
                   Select Payment Method <span className="text-rose-500">*</span>
                 </label>
                 <div className="space-y-2">
@@ -616,8 +750,8 @@ const Bookings = () => {
                     <label
                       key={method}
                       className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedPaymentMethod === method
-                          ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20'
-                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                          ? 'border-forest-500 bg-forest-50'
+                          : 'border-stone-200 bg-white hover:bg-stone-50'
                         }`}
                     >
                       <input
@@ -626,31 +760,56 @@ const Bookings = () => {
                         value={method}
                         checked={selectedPaymentMethod === method}
                         onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                        className="text-emerald-600 focus:ring-emerald-500"
+                        className="text-forest-600 focus:ring-forest-500"
                       />
-                      <span className="text-xs font-bold text-slate-800">{method}</span>
+                      <span className="text-xs font-bold text-stone-800">{method}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
+              {/* Simulation notice (Razorpay not configured) */}
+              {checkoutStep === 'simulated' && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-[11px] font-medium flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    Auto-detected: the live Razorpay gateway is not configured on this server. The payment will be recorded in simulated development mode so you can test the full flow without a real charge.
+                  </span>
+                </div>
+              )}
+
               {/* Action Buttons */}
-              <div className="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+              <div className="flex justify-end space-x-3 pt-3 border-t border-stone-100">
                 <button
                   type="button"
                   onClick={() => setPayingBooking(null)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  className="btn-ghost"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isPaymentSubmitting}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors shadow-md flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {isPaymentSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Confirm & Pay ${payingBooking.totalPrice}</span>
-                </button>
+                {checkoutStep === 'simulated' ? (
+                  <button
+                    type="submit"
+                    disabled={isPaymentSubmitting}
+                    className="btn btn-primary flex items-center space-x-1.5"
+                  >
+                    {isPaymentSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>Confirm & Pay ₹{payingBooking.totalPrice} (Simulated)</span>
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isPaymentSubmitting}
+                    className="btn btn-primary flex items-center space-x-1.5"
+                  >
+                    {isPaymentSubmitting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Lock className="w-3.5 h-3.5" />
+                    )}
+                    <span>Pay Securely via Razorpay</span>
+                  </button>
+                )}
               </div>
             </form>
 
@@ -660,26 +819,27 @@ const Bookings = () => {
 
       {/* Admin Rejection Remarks Modal */}
       {rejectingBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
+        <div {...rejectDialogProps} className={`${rejectDialogProps.className} fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-900/50 animate-fadeIn`}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-stone-200 space-y-4 relative">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+              <h3 id="reject-modal-title" className="text-lg font-bold text-stone-900">
                 Reject Booking #{rejectingBooking.bookingNumber}
               </h3>
               <button
                 onClick={() => setRejectingBooking(null)}
-                className="text-slate-400 hover:text-slate-600"
+                aria-label="Close dialog"
+                className="text-stone-400 hover:text-stone-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-500">
-              Provide an optional reason or remark for rejecting this reservation request from farmer <span className="font-bold text-slate-800">{rejectingBooking.customer?.name}</span>.
+            <p className="text-xs text-stone-500">
+              Provide an optional reason or remark for rejecting this reservation request from farmer <span className="font-bold text-stone-800">{rejectingBooking.customer?.name}</span>.
             </p>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
                 Rejection Remarks
               </label>
               <textarea
@@ -687,21 +847,21 @@ const Bookings = () => {
                 onChange={(e) => setAdminRemarks(e.target.value)}
                 rows="3"
                 placeholder="e.g. Machine required for scheduled maintenance..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
               ></textarea>
             </div>
 
             <div className="flex justify-end space-x-3 pt-2">
               <button
                 onClick={() => setRejectingBooking(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleUpdateStatus(rejectingBooking._id, 'rejected', adminRemarks)}
                 disabled={isActionSubmitting}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-colors shadow-md cursor-pointer disabled:opacity-50"
+                className="btn btn-danger"
               >
                 Confirm Rejection
               </button>
@@ -712,27 +872,28 @@ const Bookings = () => {
 
       {/* Admin Issue Refund Modal */}
       {refundingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">
+        <div {...refundDialogProps} className={`${refundDialogProps.className} fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-900/50 animate-fadeIn`}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-stone-200 space-y-4 relative">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+              <h3 id="refund-modal-title" className="text-lg font-bold text-stone-900">
                 Issue Refund for #{refundingPayment.transactionNumber}
               </h3>
               <button
                 onClick={() => setRefundingPayment(null)}
-                className="text-slate-400 hover:text-slate-600"
+                aria-label="Close dialog"
+                className="text-stone-400 hover:text-stone-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-500">
-              Confirm issuing a full refund of <span className="font-extrabold text-slate-900">${refundingPayment.amount}</span> for transaction <span className="font-mono font-bold text-slate-800">{refundingPayment.transactionNumber}</span>. Note: The associated booking status will remain unchanged.
+            <p className="text-xs text-stone-500">
+              Confirm issuing a full refund of <span className="font-extrabold text-stone-900">₹{refundingPayment.amount}</span> for transaction <span className="font-mono font-bold text-stone-800">{refundingPayment.transactionNumber}</span>. Note: The associated booking status will remain unchanged.
             </p>
 
             <form onSubmit={handleIssueRefund} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
                   Admin Refund Notes (Optional)
                 </label>
                 <textarea
@@ -740,7 +901,7 @@ const Bookings = () => {
                   onChange={(e) => setRefundAdminNotes(e.target.value)}
                   rows="3"
                   placeholder="e.g. Refund requested due to severe weather plan change..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
                 ></textarea>
               </div>
 
@@ -748,14 +909,15 @@ const Bookings = () => {
                 <button
                   type="button"
                   onClick={() => setRefundingPayment(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                  className="btn btn-ghost"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isRefundSubmitting}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-colors shadow-md cursor-pointer disabled:opacity-50"
+                  className="btn"
+                  style={{ backgroundColor: '#7e22ce', color: '#fff' }}
                 >
                   Confirm Refund
                 </button>

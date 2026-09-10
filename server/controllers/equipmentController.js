@@ -83,7 +83,7 @@ const getEquipmentById = async (req, res) => {
 // @access  Private/Admin
 const createEquipment = async (req, res) => {
   try {
-    const { name, category, description, dailyRate, status, location, imageUrl } = req.body;
+    const { name, category, description, dailyRate, status, location, imageUrl, usageHours, maintenanceIntervalDays, coordinates } = req.body;
 
     if (!name || !description || dailyRate === undefined || dailyRate === null) {
       return res.status(400).json({
@@ -100,6 +100,36 @@ const createEquipment = async (req, res) => {
       });
     }
 
+    const parsedHours = usageHours !== undefined && usageHours !== null ? Number(usageHours) : 0;
+    if (isNaN(parsedHours) || parsedHours < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'usageHours must be a non-negative number',
+      });
+    }
+
+    const parsedInterval = maintenanceIntervalDays !== undefined && maintenanceIntervalDays !== null ? Number(maintenanceIntervalDays) : 90;
+    if (isNaN(parsedInterval) || parsedInterval < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'maintenanceIntervalDays must be at least 1',
+      });
+    }
+
+    // Validate optional coordinates
+    let coordinatesToSave = { lat: null, lng: null };
+    if (coordinates && coordinates.lat != null && coordinates.lng != null) {
+      const lat = Number(coordinates.lat);
+      const lng = Number(coordinates.lng);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid coordinates. lat must be -90..90 and lng -180..180',
+        });
+      }
+      coordinatesToSave = { lat, lng };
+    }
+
     const equipment = await Equipment.create({
       name,
       category: category || 'Tractors',
@@ -109,6 +139,9 @@ const createEquipment = async (req, res) => {
       location: location || '',
       imageUrl: imageUrl || '',
       createdBy: req.user._id,
+      usageHours: parsedHours,
+      maintenanceIntervalDays: parsedInterval,
+      coordinates: coordinatesToSave,
     });
 
     return res.status(201).json({
@@ -164,6 +197,57 @@ const updateEquipment = async (req, res) => {
         });
       }
       req.body.dailyRate = parsedRate;
+    }
+
+    if (req.body.usageHours !== undefined && req.body.usageHours !== null) {
+      const parsedHours = Number(req.body.usageHours);
+      if (isNaN(parsedHours) || parsedHours < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'usageHours must be a non-negative number',
+        });
+      }
+      req.body.usageHours = parsedHours;
+    }
+
+    if (req.body.maintenanceIntervalDays !== undefined && req.body.maintenanceIntervalDays !== null) {
+      const parsedInterval = Number(req.body.maintenanceIntervalDays);
+      if (isNaN(parsedInterval) || parsedInterval < 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'maintenanceIntervalDays must be at least 1',
+        });
+      }
+      req.body.maintenanceIntervalDays = parsedInterval;
+    }
+
+    // Validate & normalize coordinates
+    if (req.body.coordinates && req.body.coordinates.lat != null && req.body.coordinates.lng != null) {
+      const lat = Number(req.body.coordinates.lat);
+      const lng = Number(req.body.coordinates.lng);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid coordinates. lat must be -90..90 and lng -180..180',
+        });
+      }
+      req.body.coordinates = { lat, lng };
+    }
+
+    // Auto-compute next maintenance due from interval when applicable
+    if (req.body.lastMaintenanceDate) {
+      const base = new Date(req.body.lastMaintenanceDate);
+      const interval = Number(req.body.maintenanceIntervalDays !== undefined ? req.body.maintenanceIntervalDays : equipment.maintenanceIntervalDays) || 90;
+      if (!isNaN(base.getTime())) {
+        const next = new Date(base);
+        next.setDate(next.getDate() + interval);
+        req.body.nextMaintenanceDue = next;
+      }
+    } else if (req.body.maintenanceIntervalDays !== undefined && equipment.lastMaintenanceDate) {
+      const base = new Date(equipment.lastMaintenanceDate);
+      const next = new Date(base);
+      next.setDate(next.getDate() + Number(req.body.maintenanceIntervalDays));
+      req.body.nextMaintenanceDue = next;
     }
 
     // Do not allow overriding createdBy from client body

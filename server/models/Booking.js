@@ -8,6 +8,11 @@ const bookingSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    invoiceNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     equipment: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Equipment',
@@ -55,6 +60,29 @@ const bookingSchema = new mongoose.Schema(
       trim: true,
       default: '',
       maxlength: [300, 'Admin remarks cannot exceed 300 characters'],
+    },
+    // Weather-aware smart scheduling snapshot captured at booking creation
+    weatherSlot: {
+      classification: {
+        type: String,
+        enum: ['BEST', 'USABLE', 'NOT RECOMMENDED', 'UNKNOWN'],
+        default: 'UNKNOWN',
+      },
+      summary: { type: String, default: '' },
+      reasons: [{ type: String }],
+      checkedAt: { type: Date, default: null },
+    },
+    // Billing breakdown (validated server-side)
+    billing: {
+      baseAmount: { type: Number, default: 0 },
+      transportCharge: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      finalAmount: { type: Number, default: 0 },
+    },
+    transportNotes: {
+      type: String,
+      trim: true,
+      default: '',
     },
   },
   {

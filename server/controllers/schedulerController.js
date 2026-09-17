@@ -34,6 +34,19 @@ const analyzeSlot = async (req, res) => {
       return res.status(400).json({ success: false, message: 'End date cannot be earlier than start date' });
     }
 
+    if (
+      customerCoordinates &&
+      (customerCoordinates.lat == null || customerCoordinates.lng == null ||
+        isNaN(Number(customerCoordinates.lat)) || isNaN(Number(customerCoordinates.lng)) ||
+        Number(customerCoordinates.lat) < -90 || Number(customerCoordinates.lat) > 90 ||
+        Number(customerCoordinates.lng) < -180 || Number(customerCoordinates.lng) > 180)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid customerCoordinates. lat must be -90..90 and lng -180..180',
+      });
+    }
+
     const duration = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
     // Fetch real weather forecast (graceful if missing/coordinates absent)
@@ -53,11 +66,26 @@ const analyzeSlot = async (req, res) => {
       dailyForecast: forecast,
     });
 
+    // Human-readable decision summary across all evaluated factors.
+    const explanation = [
+      ...(analysis.requestedSlot.reasons || []),
+      analysis.recommendation === 'ok'
+        ? 'The requested slot can be booked.'
+        : analysis.recommendation === 'alternatives_required'
+          ? 'The requested slot is unavailable; alternative dates are suggested below.'
+          : 'The requested slot is free but weather conditions are poor; consider an alternative date.',
+    ];
+
     return res.status(200).json({
       success: true,
       weatherAvailable: forecast.available,
       weatherReason: forecast.reason || null,
+      explanation,
       ...analysis,
+      requestedSlot: {
+        ...analysis.requestedSlot,
+        weatherAvailable: forecast.available,
+      },
     });
   } catch (error) {
     console.error('Analyze slot error:', error);

@@ -65,12 +65,6 @@ const Login = () => {
     }
   };
 
-  const handleForgotPassword = (e) => {
-    e.preventDefault();
-    setError('');
-    setInfoMessage('Password reset functionality is currently disabled. Please contact system support.');
-  };
-
   const handleGoogleCredentialResponse = useCallback(async (response) => {
     if (!response?.credential) {
       setError('Google authentication failed. No credential received.');
@@ -227,7 +221,7 @@ const Login = () => {
 
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold tracking-wide text-stone-700 uppercase mb-1.5">
+              <label htmlFor="email" className="label">
                 Email Address
               </label>
               <div className="relative rounded-xl shadow-xs">
@@ -251,7 +245,7 @@ const Login = () => {
             {/* Password Field */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" className="block text-xs font-semibold tracking-wide text-stone-700 uppercase">
+                <label htmlFor="password" className="label">
                   Password
                 </label>
                 <Link
@@ -274,7 +268,7 @@ const Login = () => {
                   required
                   value={password}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   className="block w-full pl-11 pr-11 py-3 border border-stone-300 rounded-xl text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 transition-colors bg-white"
                 />
                 
@@ -299,7 +293,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-700 transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-600 hover:bg-forest-700 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-600 transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="w-full flex flex-col items-center justify-center py-0.5">

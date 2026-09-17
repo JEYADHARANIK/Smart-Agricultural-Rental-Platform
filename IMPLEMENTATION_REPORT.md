@@ -119,7 +119,78 @@ Every integration detects this and degrades gracefully — the app boots and fun
 - Payments → Razorpay disabled; booking checkout uses a simulated payment (no fake gateway).
 - SMS → logged locally instead of sent (no fake notifications).
 
-## 4. Run it
+## 4. Intelligence hardening pass (post-PSI audit)
+
+A follow-up pass audited the four "AI" features and strengthened them without
+rewriting working behavior. Outcome: an honest, auditable, fully-tested
+intelligence layer. Full architecture: `docs/AI-and-Intelligent-Decision-Support.md`.
+
+### New shared layer
+
+- `config/intelligence.js` — single source of truth (languages, slot meanings/ranks,
+  risk levels, `GEMINI_MODEL` default, credential placeholder detection).
+- `services/aiProvider.js` — thin Gemini wrapper with markdown-JSON extraction and
+  `NOT_CONFIGURED` / `API_ERROR` codes.
+- `services/prompts.js` — auditable system prompts: strict JSON output contract for
+  recommendations; safety rules for the chat assistant (no invented data, no other
+  users' data, no hidden instructions, no medical/legal/financial advice, ≤150 words).
+- `services/recommendationEngine.js` — deterministic fallback (keyword + hard-budget
+  constraint; budget bonus only on real keyword matches so irrelevant units can't qualify).
+- `services/farmerAssistant.js` — localized deterministic replies in all six languages
+  from the real context; `runAssistantReply` returns `mode: 'gemini' | 'rule-based'`.
+- `services/intelligenceService.js` — facade (`runRecommendation`, `getCapabilities`)
+  that validates/grounds Gemini output against live inventory (drops hallucinated IDs,
+  de-dupes, caps at 3, clamps scores) and falls back to rules on missing key / API error.
+
+### Behavioral changes (all additive / honest)
+
+- `POST /api/ai/recommend-equipment` now returns HTTP 200 with rule-based results
+  (`mode: 'rule-based'`) when Gemini is unconfigured, instead of 503. Response adds `mode`.
+- New `GET /api/ai/capabilities` reports each feature's runtime mode/provider/weather state.
+- `chatbotController` now grounds on a bounded live catalog (limit 20) + the caller's own
+  bookings (`limit 10`, populated) and passes it to both Gemini and the fallback.
+- `schedulerController` validates customer coordinates, returns an `explanation` array,
+  and surfaces `requestedSlot.weatherAvailable`.
+- `maintenanceRisk` now also returns per-factor `factors` and `insufficientData` (honest
+  "no data" flag); existing thresholds, scores, and levels unchanged.
+- Fix: `schedulingEngine` `evaluateLocation` computed `eqCoords` as a boolean, turning
+  haversine distances into `NaN` (`"Approximately NaN km"` in UI reasons). Now returns the
+  real coordinates object.
+- Fix: weather `evaluateWeather` previously pushed `undefined` summaries into `reasons`
+  on the no-forecast path; now returns consistent `{classification, summary, reasons}`.
+
+### Testing & evaluation
+
+- `npm test` (`node --test`, zero new dependencies) — **46/46 passing**: weatherService
+  classification, recommendation engine, farmer assistant localizations + orchestration,
+  scheduling engine (DB-free via an in-memory fake booking model hooked through
+  `__setBookingModelForTest`), maintenance risk scoring (exact-score fixtures), and
+  intelligenceService capabilities.
+- `npm run evaluate` — deterministic scenario evaluator (`scripts/evaluate-intelligence.js`)
+  that exercises the same production code paths against fixed inputs and prints each
+  decision + reasoning. **11/11 scenarios pass.** It runs no AI inference and fabricates
+  no metrics by design.
+
+### Frontend
+
+- Equipment AI card now shows a mode badge ("Gemini AI match" vs "Rule-based match")
+  sourced from `res.data.mode`; no structural redesign.
+
+### Verification (this pass)
+
+- `node --check` on all new/edited server files: OK.
+- `npm test`: 46/46, `npm run evaluate`: 11/11.
+- Client `vite build`: green (only the pre-existing chunk-size warning).
+- Client ESLint: still exactly the pre-existing baseline (37 errors / 1 warning, all in
+  untouched legacy files); no new problems introduced.
+
+### Note (pre-existing, untouched)
+
+Some client copy strings (e.g. Equipment page idle text) contain an em-dash stored as a
+mojibake sequence (`â€”`) that was present before this pass. It is cosmetic, out of the
+intelligence scope, and was left as-is to avoid unrelated churn.
+
+## 5. Run it
 
 ```bash
 # Backend (port 5000)
@@ -136,3 +207,64 @@ npm run dev
 To enable real integrations, replace the placeholder values in `server/.env`
 (`GEMINI_API_KEY`, `OPENWEATHER_API_KEY`, `RAZORPAY_KEY_ID`/`_SECRET`,
 `TWILIO_ACCOUNT_SID`/`_AUTH_TOKEN`/`_FROM_NUMBER`) — no code changes required.
+
+## 6. Feature-completion sweep
+
+A production-completeness pass closed the remaining functional gaps identified by a
+front-to-back endpoint/UI/data-flow audit. No working behavior was rewritten; the role model,
+booking status enum, and API contracts are unchanged.
+
+### Backend
+
+- **Rental lifecycle automation** — new `utils/bookingLifecycle.js` (wired in `server.js`)
+  runs at boot + every 6 hours: `approved`+paid bookings reaching their start date become
+  `active` (equipment → `Rented`), unpaid ones get a `payment_pending` reminder; `active`
+  bookings past their end date become `completed` (equipment freed when no successor); and a
+  maintenance watchdog pushes a once-per-day `maintenance_due` notice to admins. Idempotent
+  and notification-duplicate-guarded.
+- **Payment gating** — `PATCH /api/bookings/:id/status` now requires a settled (`paid`)
+  payment before a booking can be marked `active` or `completed`; `POST /api/payments/verify`
+  enforces `booking.status === 'approved'`; `razorpayService.verifySignature` never throws on
+  missing/malformed input (returns `false`).
+- **Maintenance window** — `createBooking` rejects requests that overlap
+  `nextMaintenanceDue` using the exact (+3 day) rule the scheduling engine already applies
+  (`evaluateMaintenance`, now reused directly).
+- **Analytics truthfulness** — `pendingPayments` now = approved bookings without a `paid`
+  payment (previously read a `paymentStatus:'pending'` value that is never written, so it was
+  always 0); `activeRentals` matches the dashboard card (active OR approved covering today);
+  utilization/most-rented count executed rentals (`active`+`completed`) only.
+- **Validation & protection** — `getMyBookings` validates the admin `customerId` ObjectId
+  (400 instead of a `CastError` 500); `PUT /api/maintenance/equipment/:id` validates
+  `usageHours`/`maintenanceIntervalDays`/`lastMaintenanceDate`; `deleteEquipment` is blocked
+  while pending/approved/active bookings exist (no orphaned rental data).
+- **Notifications** — booking cancels (both `cancelBooking` and the admin status endpoint)
+  notify the customer, and the status endpoint now covers a `cancelled` case.
+
+### Frontend
+
+- **₹ consistency** — replaced the remaining `$`/`$ USD` customer-facing rates and the
+  `DollarSign` icon with ₹ / `IndianRupee` (Bookings, Equipment, Admin dashboard).
+- **Invoice / receipt** — new modal on every booking card (admin + customer) showing the
+  generated `invoiceNumber`, payment status + transaction reference, rental period, and the
+  server-validated billing breakdown (base / transport / discount / total).
+- **Admin cancel** — the bookings Actions column exposes a Cancel action for
+  pending/approved rentals (customer gets a notification).
+- **Badge freshness** — marking notifications read on the Notifications page now dispatches a
+  `notifications-updated` event that the Navbar bell badge listens to.
+- **Honest hero** — the Home page hero replaced hardcoded "John Deere 5075E / Match 98%"
+  copy with the first real available machine from the public equipment API.
+- **Dead code** — removed unused `DollarSign` imports and the never-used
+  `handleForgotPassword` handler.
+
+### Verification (this pass)
+
+- `node --check`: 54 files OK.
+- `npm test`: **54/54** (46 prior + 8 new: `bookingLifecycle` transitions/reminders/watchdog
+  via injected in-memory fakes; `razorpayService.verifySignature` robustness).
+- `npm run evaluate`: 11/11.
+- Client `vite build`: green.
+- Client ESLint: **35 problems** (34 errors / 1 warning) — down from the pre-existing baseline
+  of 38 thanks to the dead-code removal; no new problem classes introduced.
+- Server boot + `GET /api/health` → HTTP 200 against a live local MongoDB; the lifecycle
+  processor was observed auto-advancing a real booking on startup.
+- Secret scan: clean (only placeholder values; real `.env` files remain git-ignored).

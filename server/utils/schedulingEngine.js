@@ -18,6 +18,18 @@ const { classifyDay } = require('./weatherService');
 
 const SLOT_RANK = { 'BEST': 3, 'USABLE': 2, 'NOT RECOMMENDED': 1, 'UNKNOWN': 0 };
 
+// Booking model holder. Production code uses the real model; tests inject a
+// lightweight fake so slot availability can be verified without a database.
+let bookingModel = Booking;
+
+/**
+ * Test hook: override the booking data source used for conflict queries.
+ * Restore with __setBookingModelForTest(require('../models/Booking')).
+ */
+function __setBookingModelForTest(model) {
+  bookingModel = model || Booking;
+}
+
 /**
  * Convert a date to start-of-day UTC Date.
  */
@@ -61,7 +73,7 @@ async function getConflicts(equipmentId, start, end, excludedBookingId = null) {
   if (excludedBookingId) {
     query._id = { $ne: excludedBookingId };
   }
-  return Booking.find(query).lean();
+  return bookingModel.find(query).lean();
 }
 
 /**
@@ -112,7 +124,8 @@ function evaluateWeather(dailyForecast, slot) {
   if (!dailyForecast || !dailyForecast.available) {
     return {
       classification: 'UNKNOWN',
-      reason: 'Weather forecast is currently unavailable. Proceeding without weather adjustment.',
+      summary: 'Weather forecast is currently unavailable. Proceeding without weather adjustment.',
+      reasons: ['Weather forecast is currently unavailable.'],
     };
   }
 
@@ -125,7 +138,8 @@ function evaluateWeather(dailyForecast, slot) {
   if (dayEntries.length === 0) {
     return {
       classification: 'UNKNOWN',
-      reason: 'No forecast coverage for this date range.',
+      summary: 'No forecast coverage for this date range.',
+      reasons: ['No forecast coverage for this date range.'],
     };
   }
 
@@ -160,7 +174,10 @@ function evaluateWeather(dailyForecast, slot) {
  * Otherwise a lightweight text-match heuristic is used. This never fabricates GPS data.
  */
 function evaluateLocation(equipment, customerLocation, customerCoordinates = null) {
-  const eqCoords = equipment.coordinates && equipment.coordinates.lat != null && equipment.coordinates.lng != null;
+  const eqCoords =
+    equipment.coordinates && equipment.coordinates.lat != null && equipment.coordinates.lng != null
+      ? equipment.coordinates
+      : null;
 
   if (eqCoords && customerCoordinates && customerCoordinates.lat != null && customerCoordinates.lng != null) {
     const distKm = haversineKm(eqCoords, customerCoordinates);
@@ -243,7 +260,9 @@ async function evaluateSlot(equipment, slot, context) {
   if (weatherResult.reasons && weatherResult.reasons.length) {
     reasons.push(...weatherResult.reasons);
   }
-  reasons.push(weatherResult.summary);
+  if (weatherResult.summary) {
+    reasons.push(weatherResult.summary);
+  }
 
   // Rule-based composite score (0-100). Weather is the dominant factor for
   // farming operations; availability & maintenance constraints gate eligibility above.
@@ -349,8 +368,11 @@ module.exports = {
   recommendAlternatives,
   evaluateSlot,
   evaluateWeather,
+  evaluateLocation,
+  evaluateMaintenance,
   classifyDay,
   buildCandidateSlots,
   normalizeDate,
   dayKey,
+  __setBookingModelForTest,
 };

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Equipment = require('../models/Equipment');
+const Booking = require('../models/Booking');
 
 // @desc    Get all equipment (with optional filters)
 // @route   GET /api/equipment
@@ -299,6 +300,18 @@ const deleteEquipment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Equipment machine not found',
+      });
+    }
+
+    // Protect against orphaning active rental data
+    const activeBookings = await Booking.countDocuments({
+      equipment: id,
+      status: { $in: ['pending', 'approved', 'active'] },
+    });
+    if (activeBookings > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete equipment that has pending, approved, or active bookings. Resolve those bookings first.',
       });
     }
 

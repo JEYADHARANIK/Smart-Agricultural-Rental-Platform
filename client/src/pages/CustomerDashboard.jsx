@@ -105,7 +105,7 @@ const CustomerDashboard = () => {
       <div className="page-container">
 
         {/* Welcome Header Banner */}
-        <div className="bg-forest-800 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="hero-banner p-8">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <span className="bg-white/10 text-forest-100 text-xs font-semibold px-3 py-1 rounded-full border border-white/15">
@@ -129,7 +129,7 @@ const CustomerDashboard = () => {
               </Link>
               <Link
                 to="/equipment"
-                className="bg-forest-600 hover:bg-forest-500 text-white font-bold px-6 py-3 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm shrink-0"
+                className="bg-forest-600 hover:bg-forest-700 text-white font-bold px-6 py-3 rounded-xl transition-colors flex items-center justify-center space-x-2 text-sm shrink-0"
               >
                 <PlusCircle className="w-5 h-5" />
                 <span>Browse Equipment</span>
@@ -141,7 +141,7 @@ const CustomerDashboard = () => {
         {/* User Info Bar */}
         <div className="card card-body grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-stone-600">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-forest-50 text-forest-600 rounded-lg">
+            <div className="p-2 bg-forest-50 text-forest-600 rounded-xl">
               <Mail className="w-5 h-5" />
             </div>
             <div>
@@ -151,7 +151,7 @@ const CustomerDashboard = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-forest-50 text-forest-600 rounded-lg">
+            <div className="p-2 bg-forest-50 text-forest-600 rounded-xl">
               <Phone className="w-5 h-5" />
             </div>
             <div>
@@ -161,7 +161,7 @@ const CustomerDashboard = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-forest-50 text-forest-600 rounded-lg">
+            <div className="p-2 bg-forest-50 text-forest-600 rounded-xl">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
@@ -295,7 +295,7 @@ const CustomerDashboard = () => {
                         <span className="font-bold text-stone-900 block">{item.equipment?.name || 'Machine'}</span>
                         <span className="text-stone-400">{formatDate(item.startDate)} - {formatDate(item.endDate)} ({item.totalDays} days)</span>
                         {hasWeather && (
-                          <span className={`inline-flex items-center space-x-1 text-[9px] font-bold mt-1 px-2 py-0.5 rounded-full border ${WEATHER_STYLE[weather].cls}`}>
+                          <span className={`inline-flex items-center space-x-1 text-[11px] font-bold mt-1 px-2 py-0.5 rounded-full border ${WEATHER_STYLE[weather].cls}`}>
                             <WeatherIcon className="w-3 h-3" />
                             <span>{WEATHER_STYLE[weather].label}</span>
                           </span>
@@ -305,12 +305,12 @@ const CustomerDashboard = () => {
                     <div className="text-right flex items-center space-x-2">
                       <div>
                         <span className="font-extrabold text-stone-900 block">₹{item.totalPrice}</span>
-                        <span className="capitalize text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
+                        <span className="capitalize text-[11px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
                           {item.status}
                         </span>
                       </div>
                       {isPaid && (
-                        <span className="badge-green text-[10px] font-bold px-2 py-0.5">
+                        <span className="badge-green text-[11px] font-bold px-2 py-0.5">
                           Paid
                         </span>
                       )}

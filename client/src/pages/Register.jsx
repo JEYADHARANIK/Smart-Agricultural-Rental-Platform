@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { UserPlus, User, Mail, Lock, Phone, MapPin, Home, AlertCircle, Loader2, Tractor, Info } from 'lucide-react';
@@ -133,18 +133,19 @@ const Register = () => {
 
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-stone-700">Full Name *</label>
+              <label htmlFor="reg-name" className="label">Full Name *</label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                   <User className="w-5 h-5" />
                 </div>
                 <input
+                  id="reg-name"
                   name="name"
                   type="text"
                   required
                   value={name}
                   onChange={handleChange}
-                  placeholder="John Doe"
+                  placeholder="e.g. Ramesh Kumar"
                   className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                 />
               </div>
@@ -152,12 +153,13 @@ const Register = () => {
 
             {/* Email Address */}
             <div>
-              <label className="block text-sm font-medium text-stone-700">Email Address *</label>
+              <label htmlFor="reg-email" className="label">Email Address *</label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                   <Mail className="w-5 h-5" />
                 </div>
                 <input
+                  id="reg-email"
                   name="email"
                   type="email"
                   required
@@ -175,12 +177,13 @@ const Register = () => {
             {/* Passwords Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700">Password *</label>
+                <label htmlFor="reg-password" className="label">Password *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <Lock className="w-5 h-5" />
                   </div>
                   <input
+                    id="reg-password"
                     name="password"
                     type="password"
                     required
@@ -193,12 +196,13 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-stone-700">Confirm Password *</label>
+                <label htmlFor="reg-confirm-password" className="label">Confirm Password *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <Lock className="w-5 h-5" />
                   </div>
                   <input
+                    id="reg-confirm-password"
                     name="confirmPassword"
                     type="password"
                     required
@@ -214,36 +218,38 @@ const Register = () => {
             {/* Phone & Location Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700">Phone Number *</label>
+                <label htmlFor="reg-phone" className="label">Phone Number *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <Phone className="w-5 h-5" />
                   </div>
                   <input
+                    id="reg-phone"
                     name="phone"
                     type="tel"
                     required
                     value={phone}
                     onChange={handleChange}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="e.g. +91 98765 43210"
                     className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-stone-700">Location / City *</label>
+                <label htmlFor="reg-location" className="label">Location / City *</label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <input
+                    id="reg-location"
                     name="location"
                     type="text"
                     required
                     value={location}
                     onChange={handleChange}
-                    placeholder="e.g. Springfield"
+                    placeholder="e.g. Coimbatore"
                     className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                   />
                 </div>
@@ -252,18 +258,19 @@ const Register = () => {
 
             {/* Address */}
             <div>
-              <label className="block text-sm font-medium text-stone-700">Farm Address *</label>
+              <label htmlFor="reg-address" className="label">Farm Address *</label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
                   <Home className="w-5 h-5" />
                 </div>
                 <input
+                  id="reg-address"
                   name="address"
                   type="text"
                   required
                   value={address}
                   onChange={handleChange}
-                  placeholder="123 Rural Route, Green Valley"
+                  placeholder="e.g. 42, Anna Nagar, Thanjavur"
                   className="block w-full pl-10 pr-3 py-2.5 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-forest-500/30 focus:border-forest-500 text-sm text-stone-800"
                 />
               </div>
@@ -274,7 +281,7 @@ const Register = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-700 transition-colors disabled:opacity-50"
+                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-600 hover:bg-forest-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-600 transition-colors disabled:opacity-50"
               >
                 {loading ? (
                   <>

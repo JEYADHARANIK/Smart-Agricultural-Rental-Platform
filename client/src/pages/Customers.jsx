@@ -106,7 +106,7 @@ const Customers = () => {
     .reduce((s, p) => s + (p.amount || 0), 0);
 
   return (
-    <div className="page-shell py-10">
+    <div className="page-shell">
       <div className="page-container">
 
         {/* Header */}
@@ -142,10 +142,11 @@ const Customers = () => {
         {/* Search Toolbar */}
         <div className="card">
           <div className="p-4">
-            <div className="flex items-center space-x-2 bg-stone-100 rounded-xl px-3.5 py-2.5 text-stone-400 w-full focus-within:ring-2 focus-within:ring-forest-500/20 border border-transparent transition-all">
+            <div className="input-search w-full">
               <Search className="w-4 h-4 text-stone-400 shrink-0" />
               <input
                 type="text"
+                aria-label="Search customers"
                 placeholder="Search by name, email, phone, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -231,7 +232,7 @@ const Customers = () => {
                         </td>
                         <td className="table-td text-xs text-stone-500">{formatDate(customer.createdAt)}</td>
                         <td className="table-td">
-                          <span className="text-[10px] text-stone-500 block mb-1">
+                          <span className="text-[11px] text-stone-500 block mb-1">
                             {custBookings.length} booking{custBookings.length === 1 ? '' : 's'} &bull; ₹{custTotal} spent
                           </span>
                           <button
@@ -277,7 +278,7 @@ const Customers = () => {
               <button
                 onClick={() => setSelectedCustomer(null)}
                 aria-label="Close dialog"
-                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -304,19 +305,19 @@ const Customers = () => {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
                 <CalendarCheck className="w-5 h-5 text-amber-600 mx-auto" />
                 <span className="block text-xl font-extrabold text-stone-900 mt-1">{cBookings.length}</span>
-                <span className="text-[10px] uppercase font-bold text-stone-500">Total Bookings</span>
+                <span className="text-[11px] uppercase font-bold text-stone-500">Total Bookings</span>
               </div>
               <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 text-center">
                 <CreditCard className="w-5 h-5 text-sky-600 mx-auto" />
                 <span className="block text-xl font-extrabold text-stone-900 mt-1">
                   {cPayments.filter((p) => p.paymentStatus === 'paid').length}
                 </span>
-                <span className="text-[10px] uppercase font-bold text-stone-500">Paid Rentals</span>
+                <span className="text-[11px] uppercase font-bold text-stone-500">Paid Rentals</span>
               </div>
               <div className="bg-forest-50 border border-forest-200 rounded-xl p-3 text-center">
                 <FileText className="w-5 h-5 text-forest-600 mx-auto" />
                 <span className="block text-xl font-extrabold text-forest-700 mt-1">₹{totalSpent}</span>
-                <span className="text-[10px] uppercase font-bold text-stone-500">Total Spent</span>
+                <span className="text-[11px] uppercase font-bold text-stone-500">Total Spent</span>
               </div>
             </div>
 
@@ -338,7 +339,7 @@ const Customers = () => {
                       </div>
                       <div className="text-right">
                         <span className="font-extrabold text-forest-700 block">₹{b.totalPrice}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${b.status === 'cancelled' || b.status === 'rejected'
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full capitalize ${b.status === 'cancelled' || b.status === 'rejected'
                             ? 'bg-rose-100 text-rose-700'
                             : b.status === 'completed'
                               ? 'bg-stone-100 text-stone-600'
@@ -371,7 +372,7 @@ const Customers = () => {
                       </div>
                       <div className="text-right">
                         <span className="font-extrabold text-stone-900 block">₹{p.amount}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${p.paymentStatus === 'paid'
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full capitalize ${p.paymentStatus === 'paid'
                             ? 'bg-forest-100 text-forest-800'
                             : p.paymentStatus === 'refunded'
                               ? 'bg-purple-100 text-purple-700'

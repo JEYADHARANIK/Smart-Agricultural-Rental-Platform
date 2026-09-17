@@ -43,8 +43,11 @@ const Navbar = () => {
       }
     };
     fetchUnread();
+    // Refresh immediately when notifications are marked as read elsewhere.
+    window.addEventListener('notifications-updated', fetchUnread);
     return () => {
       cancelled = true;
+      window.removeEventListener('notifications-updated', fetchUnread);
     };
   }, [isAuthenticated, location.pathname, user?._id]);
 
@@ -56,7 +59,7 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   const linkClass = (path) =>
-    `flex items-center space-x-2 text-sm font-medium transition-colors px-3 py-2 rounded-lg ${isActive(path)
+    `flex items-center space-x-2 text-sm font-medium transition-colors px-3 py-2 rounded-xl ${isActive(path)
       ? 'bg-forest-600 text-white'
       : 'text-forest-100 hover:bg-forest-800 hover:text-white'
     }`;
@@ -75,14 +78,14 @@ const Navbar = () => {
               <span className="font-bold text-lg tracking-tight block leading-tight text-white">
                 AgriRent<span className="text-forest-300">Hub</span>
               </span>
-              <span className="text-[10px] text-forest-300 font-medium tracking-wider uppercase block">
+              <span className="text-[11px] text-forest-300 font-medium tracking-wider uppercase block">
                 Smart Equipment Platform
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-2">
+          <div className="hidden lg:flex items-center space-x-2">
             {!isAuthenticated ? (
               <>
                 <Link to="/" className={linkClass('/')}>
@@ -94,7 +97,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-forest-500 hover:bg-forest-400 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-1"
+                  className="bg-forest-600 hover:bg-forest-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors flex items-center space-x-1"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Register</span>
@@ -108,7 +111,7 @@ const Navbar = () => {
                   <span>Dashboard</span>
                 </Link>
                 <Link to="/admin/equipment" className={linkClass('/admin/equipment')}>
-                  <Wrench className="w-4 h-4" />
+                  <Tractor className="w-4 h-4" />
                   <span>Equipment Management</span>
                 </Link>
                 <Link to="/admin/bookings" className={linkClass('/admin/bookings')}>
@@ -150,13 +153,13 @@ const Navbar = () => {
                   <span>Assistant</span>
                 </Link>
                 <Link to="/notifications" className={`relative ${linkClass('/notifications').replace(
-                  'text-sm font-medium transition-colors px-3 py-2 rounded-lg ',
+                  'text-sm font-medium transition-colors px-3 py-2 rounded-xl ',
                   ''
                 )}`}>
                   <Bell className="w-4 h-4" />
                   <span>Notifications</span>
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 shadow">
+                    <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[11px] font-bold min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center shadow">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
@@ -179,7 +182,7 @@ const Navbar = () => {
                 <button
                   onClick={handleLogout}
                   aria-label="Logout"
-                  className="bg-forest-950/60 hover:bg-rose-900 text-forest-200 hover:text-rose-200 p-2 rounded-lg transition-colors border border-forest-800"
+                  className="bg-forest-950/60 hover:bg-rose-900 text-forest-200 hover:text-rose-200 p-2 rounded-xl transition-colors border border-forest-800"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -189,13 +192,13 @@ const Navbar = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="lg:hidden flex items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation-menu"
-              className="text-forest-200 hover:text-white p-2 rounded-lg focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
+              className="text-forest-200 hover:text-white p-2 rounded-xl focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -205,7 +208,7 @@ const Navbar = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div id="mobile-navigation-menu" className="md:hidden bg-forest-950 border-t border-forest-800 px-4 pt-3 pb-4 space-y-2">
+        <div id="mobile-navigation-menu" className="lg:hidden bg-forest-950 border-t border-forest-800 px-4 pt-3 pb-4 space-y-2">
           {!isAuthenticated ? (
             <>
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className={linkClass('/')}>
@@ -218,7 +221,7 @@ const Navbar = () => {
               <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center bg-forest-500 hover:bg-forest-400 text-white font-semibold px-4 py-2 rounded-lg text-sm block mt-2"
+                className="w-full text-center bg-forest-600 hover:bg-forest-700 text-white font-semibold px-4 py-2 rounded-xl text-sm block mt-2"
               >
                 Register
               </Link>
@@ -251,7 +254,7 @@ const Navbar = () => {
                   setMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="w-full text-left text-rose-300 hover:bg-forest-800 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 mt-2"
+                className="w-full text-left text-rose-300 hover:bg-forest-800 px-3 py-2 rounded-xl text-sm font-medium flex items-center space-x-2 mt-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout ({user?.name})</span>
@@ -279,7 +282,7 @@ const Navbar = () => {
                   setMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="w-full text-left text-rose-300 hover:bg-forest-800 px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 mt-2"
+                className="w-full text-left text-rose-300 hover:bg-forest-800 px-3 py-2 rounded-xl text-sm font-medium flex items-center space-x-2 mt-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout ({user?.name})</span>

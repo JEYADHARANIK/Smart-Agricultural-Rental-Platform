@@ -56,6 +56,7 @@ const Notifications = () => {
       await api.put('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      window.dispatchEvent(new Event('notifications-updated'));
     } catch (err) {
       console.error('Mark all read error:', err);
       setError(err.response?.data?.message || 'Failed to mark notifications as read.');
@@ -67,6 +68,7 @@ const Notifications = () => {
       await api.patch(`/notifications/${id}/read`);
       setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
       setUnreadCount((c) => Math.max(0, c - 1));
+      window.dispatchEvent(new Event('notifications-updated'));
     } catch (err) {
       console.error('Mark one read error:', err);
     }

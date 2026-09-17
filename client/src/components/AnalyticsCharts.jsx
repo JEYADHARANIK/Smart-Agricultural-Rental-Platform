@@ -142,13 +142,13 @@ const AnalyticsCharts = ({ analytics, loading }) => {
               {mostRented.map((m, i) => (
                 <div key={m._id} className="flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-2 min-w-0">
-                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[10px] ${
+                    <span className={`w-6 h-6 rounded-xl flex items-center justify-center font-bold text-[11px] ${
                       i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
                     }`}>
                       {i + 1}
                     </span>
                     <span className="font-bold text-stone-800 truncate">{m.name}</span>
-                    <span className="text-stone-400 text-[10px]">{m.category}</span>
+                    <span className="text-stone-400 text-[11px]">{m.category}</span>
                   </div>
                   <span className="font-extrabold text-forest-600 shrink-0">{m.rentals} rental{m.rentals === 1 ? '' : 's'}</span>
                 </div>

@@ -87,10 +87,30 @@ const updateEquipmentMaintenance = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Equipment not found' });
     }
 
+    if (req.body.usageHours !== undefined && req.body.usageHours !== null) {
+      const parsed = Number(req.body.usageHours);
+      if (isNaN(parsed) || parsed < 0) {
+        return res.status(400).json({ success: false, message: 'usageHours must be a non-negative number' });
+      }
+      equipment.usageHours = parsed;
+    }
+
+    if (req.body.maintenanceIntervalDays !== undefined && req.body.maintenanceIntervalDays !== null) {
+      const parsed = Number(req.body.maintenanceIntervalDays);
+      if (isNaN(parsed) || parsed < 1) {
+        return res.status(400).json({ success: false, message: 'maintenanceIntervalDays must be at least 1' });
+      }
+      equipment.maintenanceIntervalDays = parsed;
+    }
+
+    if (req.body.lastMaintenanceDate) {
+      equipment.lastMaintenanceDate = new Date(req.body.lastMaintenanceDate);
+      if (isNaN(equipment.lastMaintenanceDate.getTime())) {
+        return res.status(400).json({ success: false, message: 'Invalid lastMaintenanceDate' });
+      }
+    }
+
     const allowed = [
-      'usageHours',
-      'maintenanceIntervalDays',
-      'lastMaintenanceDate',
       'maintenanceType',
       'maintenanceNotes',
       'status',
@@ -101,9 +121,7 @@ const updateEquipmentMaintenance = async (req, res) => {
       }
     });
 
-    if (req.body.lastMaintenanceDate) {
-      equipment.nextMaintenanceDue = computeNextDue(equipment);
-    } else if (equipment.lastMaintenanceDate) {
+    if (equipment.lastMaintenanceDate) {
       equipment.nextMaintenanceDue = computeNextDue(equipment);
     }
 

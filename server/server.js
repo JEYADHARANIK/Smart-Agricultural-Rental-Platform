@@ -10,6 +10,11 @@ dotenv.config({ path: require('path').resolve(__dirname, '.env') });
 // Connect to database
 connectDB();
 
+// Start the automatic booking/rental lifecycle processor (idempotent transitions).
+// Mongoose buffers these queries until the initial DB connection completes.
+const { startBookingLifecycle } = require('./utils/bookingLifecycle');
+startBookingLifecycle();
+
 const app = express();
 
 // Middleware

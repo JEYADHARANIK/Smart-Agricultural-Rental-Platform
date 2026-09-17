@@ -13,11 +13,11 @@ const LANGUAGES = [
 ];
 
 const QUICK_PROMPTS = [
-  'What equipment is available?',
-  'How do I book a tractor?',
-  'What are the rental prices?',
+  'Find equipment for ploughing',
+  'Show available equipment',
+  'Check my booking',
   'What does BEST / USABLE / NOT RECOMMENDED mean?',
-  'How do payments work?',
+  'How does payment work?',
 ];
 
 const FarmerAssistant = () => {
@@ -80,7 +80,7 @@ const FarmerAssistant = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
 
         {/* Header */}
-        <div className="bg-forest-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden">
+        <div className="hero-banner p-6 sm:p-8">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
             <div className="space-y-2">
               <div className="inline-flex items-center space-x-1.5 bg-white/10 text-forest-100 text-xs font-semibold px-3 py-1 rounded-full border border-white/15">
@@ -95,7 +95,7 @@ const FarmerAssistant = () => {
 
             {/* Language Selector */}
             <div className="bg-white/10 border border-white/15 rounded-2xl p-3 shrink-0">
-              <label className="flex items-center space-x-1.5 text-[10px] uppercase font-bold tracking-wider text-forest-200 mb-2">
+              <label className="flex items-center space-x-1.5 text-[11px] uppercase font-bold tracking-wider text-forest-200 mb-2">
                 <Languages className="w-3.5 h-3.5" />
                 <span>Assistant Language</span>
               </label>
@@ -154,7 +154,7 @@ const FarmerAssistant = () => {
                   <p className="whitespace-pre-wrap">{m.content}</p>
                   {m.role === 'assistant' && m.mode && (
                     <span
-                      className={`inline-flex items-center space-x-1 text-[9px] font-bold uppercase tracking-wider mt-2 px-2 py-0.5 rounded-full ${
+                      className={`inline-flex items-center space-x-1 text-[11px] font-bold uppercase tracking-wider mt-2 px-2 py-0.5 rounded-full ${
                         m.mode === 'gemini'
                           ? 'bg-purple-100 text-purple-700'
                           : m.mode === 'rule-based'

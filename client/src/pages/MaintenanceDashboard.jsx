@@ -219,7 +219,7 @@ const MaintenanceDashboard = () => {
           {stats.map((s) => (
             <div key={s.label} className="stat-card">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{s.label}</span>
+                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">{s.label}</span>
                 <div className={`p-2.5 ${s.color} rounded-xl`}>
                   <s.icon className="w-5 h-5" />
                 </div>
@@ -395,8 +395,9 @@ const MaintenanceDashboard = () => {
             <form onSubmit={handleRecordMaintenance} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Service Date</label>
+                  <label htmlFor="maint-date" className="label">Service Date</label>
                   <input
+                    id="maint-date"
                     type="date"
                     value={maintenanceForm.date}
                     onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, date: e.target.value }))}
@@ -405,8 +406,9 @@ const MaintenanceDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="label">Usage Hours at Service</label>
+                  <label htmlFor="maint-hours" className="label">Usage Hours at Service</label>
                   <input
+                    id="maint-hours"
                     type="number"
                     min="0"
                     value={maintenanceForm.usageHoursAtService}
@@ -417,8 +419,9 @@ const MaintenanceDashboard = () => {
               </div>
 
               <div>
-                <label className="label">Maintenance Type</label>
+                <label htmlFor="maint-type" className="label">Maintenance Type</label>
                 <select
+                  id="maint-type"
                   value={maintenanceForm.type}
                   onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, type: e.target.value }))}
                   className="input"
@@ -433,8 +436,9 @@ const MaintenanceDashboard = () => {
               </div>
 
               <div>
-                <label className="label">Service Notes</label>
+                <label htmlFor="maint-notes" className="label">Service Notes</label>
                 <textarea
+                  id="maint-notes"
                   rows="3"
                   value={maintenanceForm.notes}
                   onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, notes: e.target.value }))}

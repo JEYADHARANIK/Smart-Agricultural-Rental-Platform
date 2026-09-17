@@ -14,10 +14,10 @@ import {
   ArrowRight,
   Loader2,
   Calendar,
-  DollarSign,
   CloudSun,
   CloudRain,
   Sun,
+  CloudOff,
   AlertTriangle,
   Sparkles,
   RefreshCw,
@@ -81,6 +81,7 @@ const Equipment = () => {
   const [aiSummary, setAiSummary] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
+  const [aiMode, setAiMode] = useState(null);
 
   // Form state for Admin Add/Edit
   const [formData, setFormData] = useState({
@@ -432,6 +433,7 @@ const Equipment = () => {
     setAiError(null);
     setAiRecommendations(null);
     setAiSummary('');
+    setAiMode(null);
 
     try {
       const res = await api.post('/ai/recommend-equipment', { prompt });
@@ -439,6 +441,7 @@ const Equipment = () => {
       if (res.data?.success) {
         setAiSummary(res.data.summary || '');
         setAiRecommendations(res.data.recommendations || []);
+        setAiMode(res.data.mode || null);
       } else {
         setAiError(res.data?.message || 'Could not generate recommendations. Please try again.');
       }
@@ -533,10 +536,11 @@ const Equipment = () => {
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
 
             {/* Search Input */}
-            <div className="flex items-center space-x-2 bg-stone-100 rounded-xl px-3.5 py-2.5 text-stone-400 w-full md:w-96 focus-within:ring-2 focus-within:ring-forest-500/20 focus-within:border-forest-500 border border-transparent transition-all">
+            <div className="input-search w-full md:w-96">
               <Search className="w-4 h-4 text-stone-400 shrink-0" />
               <input
                 type="text"
+                aria-label="Search equipment"
                 placeholder="Search by name, category, location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -567,7 +571,7 @@ const Equipment = () => {
 
           {/* Category Filter Pills (Desktop & Tablet) */}
           <div className="hidden md:flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
-            <span className="text-stone-400 font-bold uppercase tracking-wider text-[10px] mr-1 flex items-center space-x-1 shrink-0">
+            <span className="text-stone-400 font-bold uppercase tracking-wider text-[11px] mr-1 flex items-center space-x-1 shrink-0">
               <Filter className="w-3 h-3" />
               <span>Category:</span>
             </span>
@@ -575,7 +579,7 @@ const Equipment = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors cursor-pointer ${selectedCategory === cat
+                className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors cursor-pointer ${selectedCategory === cat
                     ? 'bg-forest-700 text-white'
                     : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                   }`}
@@ -598,7 +602,7 @@ const Equipment = () => {
                 <div>
                   <h2 className="text-lg font-extrabold tracking-tight flex items-center space-x-2">
                     <span>Find the right equipment</span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider bg-white/10 text-forest-100 px-2 py-0.5 rounded-full border border-white/15">
+                    <span className="text-[11px] font-bold uppercase tracking-wider bg-white/10 text-forest-100 px-2 py-0.5 rounded-full border border-white/15">
                       AI Powered
                     </span>
                   </h2>
@@ -673,6 +677,18 @@ const Equipment = () => {
               {/* Success state */}
               {!isAiLoading && !aiError && aiRecommendations && (
                 <div className="space-y-4">
+                  {aiMode && (
+                    <div className="flex items-center justify-end">
+                      <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        aiMode === 'ai'
+                          ? 'text-forest-700 bg-forest-50 border-forest-200'
+                          : 'text-stone-600 bg-stone-100 border-stone-200'
+                      }`}>
+                        {aiMode === 'ai' ? 'Gemini AI match' : 'Rule-based match'}
+                      </span>
+                    </div>
+                  )}
+
                   {aiSummary && (
                     <div className="bg-forest-50 border border-forest-200 rounded-2xl p-4 text-xs text-forest-900 font-medium">
                       {aiSummary}
@@ -708,7 +724,7 @@ const Equipment = () => {
                               </div>
 
                               {eq.category && (
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-forest-700 bg-forest-50 border border-forest-100 px-2.5 py-0.5 rounded-full">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-forest-700 bg-forest-50 border border-forest-100 px-2.5 py-0.5 rounded-full">
                                   {eq.category}
                                 </span>
                               )}
@@ -725,10 +741,10 @@ const Equipment = () => {
 
                               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                                 <div>
-                                  <span className="text-[10px] text-stone-400 uppercase font-bold block">Daily Rate</span>
+                                  <span className="text-[11px] text-stone-400 uppercase font-bold block">Daily Rate</span>
                                   <span className="font-extrabold text-forest-600 text-base">₹{eq.dailyRate} <span className="text-xs text-stone-500 font-normal">/ day</span></span>
                                 </div>
-                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${eq.status === 'Available' ? 'badge-green' : eq.status === 'Rented' ? 'badge-amber' : 'badge-red'}`}>
+                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${eq.status === 'Available' ? 'badge-green' : eq.status === 'Rented' ? 'badge-amber' : 'badge-red'}`}>
                                   {eq.status || 'Available'}
                                 </span>
                               </div>
@@ -767,9 +783,19 @@ const Equipment = () => {
 
         {/* Content Section: Loading, Empty, or Equipment Grid */}
         {loading ? (
-          <div className="state-block">
-            <Loader2 className="state-icon animate-spin" />
-            <p className="text-sm font-medium text-stone-600">Loading equipment fleet from database...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Loading equipment">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+                <div className="skeleton h-48 rounded-none" />
+                <div className="p-5 space-y-3">
+                  <div className="skeleton h-6 w-3/4" />
+                  <div className="skeleton h-3 w-full" />
+                  <div className="skeleton h-3 w-2/3" />
+                  <div className="skeleton h-9 w-full mt-4" />
+                </div>
+              </div>
+            ))}
+            <p className="sr-only">Loading equipment fleet from database...</p>
           </div>
         ) : filteredEquipment.length === 0 ? (
           <div className="state-block">
@@ -828,7 +854,7 @@ const Equipment = () => {
                       ) : (
                         <div className="text-forest-300 flex flex-col items-center justify-center space-y-1">
                           <Tractor className="w-16 h-16 opacity-80" />
-                          <span className="text-[10px] text-forest-200 uppercase tracking-widest font-mono">No Image</span>
+                          <span className="text-[11px] text-forest-200 uppercase tracking-widest font-mono">No Image</span>
                         </div>
                       )}
 
@@ -838,7 +864,7 @@ const Equipment = () => {
                       </span>
 
                       {/* Category Tag */}
-                      <span className="absolute bottom-3 left-3 bg-forest-950/70 text-forest-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-lg border border-forest-700">
+                      <span className="absolute bottom-3 left-3 bg-forest-950/70 text-forest-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-xl border border-forest-700">
                         {item.category}
                       </span>
                     </div>
@@ -846,7 +872,7 @@ const Equipment = () => {
                     {/* Card Content Body */}
                     <div className="p-5 space-y-3">
                       <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-stone-900 text-lg line-clamp-1">{item.name}</h3>
+                        <h3 className="font-bold text-stone-900 text-lg line-clamp-1" title={item.name}>{item.name}</h3>
                       </div>
 
                       <p className="text-xs text-stone-500 line-clamp-2 leading-relaxed">
@@ -865,7 +891,7 @@ const Equipment = () => {
                   {/* Card Footer */}
                   <div className="px-5 pb-5 pt-3 border-t border-stone-100 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-stone-400 uppercase font-bold block">Rate</span>
+                      <span className="text-[11px] text-stone-400 uppercase font-bold block">Rate</span>
                       <span className="font-extrabold text-forest-600 text-lg">₹{item.dailyRate} <span className="text-xs text-stone-500 font-normal">/ day</span></span>
                     </div>
 
@@ -876,7 +902,7 @@ const Equipment = () => {
                           <button
                             onClick={() => handleOpenModal(item)}
                             title="Edit Details"
-                            className="bg-stone-100 hover:bg-forest-50 text-stone-700 hover:text-forest-700 p-2 rounded-xl text-xs font-bold transition-colors border border-stone-200 flex items-center space-x-1 cursor-pointer"
+                            className="btn btn-sm btn-outline"
                           >
                             <Edit className="w-3.5 h-3.5" />
                             <span>Edit</span>
@@ -885,7 +911,7 @@ const Equipment = () => {
                             onClick={() => handleDelete(item)}
                             title="Delete Machine"
                             aria-label={`Delete ${item.name}`}
-                            className="bg-stone-100 hover:bg-rose-50 text-stone-600 hover:text-rose-600 p-2 rounded-xl text-xs font-bold transition-colors border border-stone-200 cursor-pointer"
+                            className="btn btn-sm btn-outline hover:bg-rose-50 hover:text-rose-600"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -922,7 +948,7 @@ const Equipment = () => {
             {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-stone-100 pb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-forest-700 bg-forest-50 px-2.5 py-0.5 rounded-full">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-forest-700 bg-forest-50 px-2.5 py-0.5 rounded-full">
                   Equipment Rental Request
                 </span>
                 <h2 id="equipment-booking-modal-title" className="text-lg font-bold text-stone-900 mt-1">{bookingEquipment.name}</h2>
@@ -930,7 +956,7 @@ const Equipment = () => {
               <button
                 onClick={handleCloseBookingModal}
                 aria-label="Close dialog"
-                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -939,12 +965,12 @@ const Equipment = () => {
             {/* Equipment Summary Banner */}
             <div className="bg-stone-50 border border-stone-200 p-3.5 rounded-2xl flex items-center justify-between text-xs text-stone-600">
               <div>
-                <span className="text-stone-400 block text-[10px] uppercase font-bold">Category & Rate</span>
+                <span className="text-stone-400 block text-[11px] uppercase font-bold">Category & Rate</span>
                 <span className="font-bold text-stone-800">{bookingEquipment.category}</span> • <span className="font-extrabold text-forest-600">₹{bookingEquipment.dailyRate}/day</span>
               </div>
               {bookingEquipment.location && (
                 <div className="text-right max-w-[140px]">
-                  <span className="text-stone-400 block text-[10px] uppercase font-bold">Location</span>
+                  <span className="text-stone-400 block text-[11px] uppercase font-bold">Location</span>
                   <span className="font-medium text-stone-700 truncate block">{bookingEquipment.location}</span>
                 </div>
               )}
@@ -963,10 +989,11 @@ const Equipment = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="bk-start" className="label">
                     Start Date <span className="text-rose-500">*</span>
                   </label>
                   <input
+                    id="bk-start"
                     type="date"
                     min={todayStr}
                     value={bookingStartDate}
@@ -982,10 +1009,11 @@ const Equipment = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="bk-end" className="label">
                     End Date <span className="text-rose-500">*</span>
                   </label>
                   <input
+                    id="bk-end"
                     type="date"
                     min={bookingStartDate || todayStr}
                     value={bookingEndDate}
@@ -1023,9 +1051,10 @@ const Equipment = () => {
                     <Loader2 className="w-4 h-4 text-forest-600 animate-spin" />
                   ) : (
                     slotAnalysis && (
-                      <span className={`text-[10px] font-semibold ${slotAnalysis.weatherAvailable ? 'text-forest-600' : 'text-stone-400'}`}>
-                        {slotAnalysis.weatherAvailable ? 'Live weather • ' : ''}
-                        {slotAnalysis.weatherReason || 'weather combined with availability & maintenance'}
+                      <span className={`text-[11px] font-semibold ${slotAnalysis.weatherAvailable ? 'text-forest-600' : 'text-stone-400'}`}>
+                        {slotAnalysis.weatherAvailable
+                          ? `Live weather • ${slotAnalysis.weatherReason || 'weather combined with availability & maintenance'}`
+                          : `Weather information is currently unavailable. ${slotAnalysis.weatherReason || 'Slot guidance is based on availability & maintenance only.'}`}
                       </span>
                     )
                   )}
@@ -1056,7 +1085,7 @@ const Equipment = () => {
                               ? { icon: CloudSun, badge: 'badge-amber', note: 'Moderate weather risk — proceed with caution.' }
                               : cls === 'NOT RECOMMENDED'
                                 ? { icon: CloudRain, badge: 'badge-red', note: 'Rain or adverse weather is expected. Consider alternatives.' }
-                                : { icon: CloudSun, badge: 'badge-slate', note: 'Unknown — proceed normally.' };
+                                : { icon: CloudOff, badge: 'badge-slate', note: 'Weather information is currently unavailable. Guidance below is based on availability & maintenance only.' };
                         const Icon = cfg.icon;
                         const badgeCls = cfg.badge === 'badge-green' ? 'bg-forest-100 text-forest-800' : cfg.badge === 'badge-amber' ? 'bg-amber-100 text-amber-800' : cfg.badge === 'badge-red' ? 'bg-rose-100 text-rose-800' : 'bg-stone-100 text-stone-600';
                         return (
@@ -1076,7 +1105,7 @@ const Equipment = () => {
 
                       {/* Availability notice */}
                       {slotAnalysis.requestedSlot.available === false && (
-                        <p className="text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 flex items-center space-x-1.5">
+                        <p className="text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center space-x-1.5">
                           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                           <span>This machine is not available for the selected dates (already reserved or in maintenance).</span>
                         </p>
@@ -1085,7 +1114,7 @@ const Equipment = () => {
                       {/* Recommended alternatives */}
                       {slotAnalysis.alternatives && slotAnalysis.alternatives.length > 0 && (
                         <div className="space-y-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">
                             Recommended alternatives for these dates:
                           </span>
                           <div className="space-y-1.5">
@@ -1097,11 +1126,11 @@ const Equipment = () => {
                               >
                                 <div>
                                   <span className="text-xs font-bold text-stone-800 block">{alt.equipmentName}</span>
-                                  <span className="text-[10px] text-stone-400 capitalize">
+                                  <span className="text-[11px] text-stone-400 capitalize">
                                     {alt.classification === 'NOT RECOMMENDED' ? 'Not Recommended' : (alt.classification === 'BEST' ? 'Good conditions expected' : alt.classification === 'USABLE' ? 'Moderate conditions' : (alt.classification || 'Unknown'))} • {alt.slot?.start ? new Date(alt.slot.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} - {alt.slot?.end ? new Date(alt.slot.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
                                   </span>
                                 </div>
-                                <span className="text-[10px] font-bold text-forest-600 flex items-center space-x-1 shrink-0">
+                                <span className="text-[11px] font-bold text-forest-600 flex items-center space-x-1 shrink-0">
                                   <ArrowRight className="w-3 h-3" />
                                   <span>Book this</span>
                                 </span>
@@ -1153,7 +1182,7 @@ const Equipment = () => {
               <button
                 onClick={handleCloseModal}
                 aria-label="Close dialog"
-                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1172,10 +1201,11 @@ const Equipment = () => {
 
               {/* Machine Name */}
               <div>
-                <label className="label">
+                <label htmlFor="eq-name" className="label">
                   Machine Name <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="eq-name"
                   type="text"
                   name="name"
                   value={formData.name}
@@ -1189,10 +1219,11 @@ const Equipment = () => {
               {/* Category & Status Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">
+                  <label htmlFor="eq-category" className="label">
                     Category <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    id="eq-category"
                     name="category"
                     value={formData.category}
                     onChange={handleFormChange}
@@ -1207,10 +1238,11 @@ const Equipment = () => {
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label htmlFor="eq-status" className="label">
                     Operational Status <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    id="eq-status"
                     name="status"
                     value={formData.status}
                     onChange={handleFormChange}
@@ -1226,10 +1258,11 @@ const Equipment = () => {
               {/* Daily Rate & Location Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">
-                    Daily Rate ($ USD) <span className="text-rose-500">*</span>
+                  <label htmlFor="eq-rate" className="label">
+                    Daily Rate (₹ INR) <span className="text-rose-500">*</span>
                   </label>
                   <input
+                    id="eq-rate"
                     type="number"
                     name="dailyRate"
                     value={formData.dailyRate}
@@ -1243,15 +1276,16 @@ const Equipment = () => {
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label htmlFor="eq-location" className="label">
                     Station / Location
                   </label>
                   <input
+                    id="eq-location"
                     type="text"
                     name="location"
                     value={formData.location}
                     onChange={handleFormChange}
-                    placeholder="e.g. Springfield Central Hub"
+                    placeholder="e.g. Coimbatore District Hub"
                     className="input"
                   />
                 </div>
@@ -1260,10 +1294,11 @@ const Equipment = () => {
               {/* Maintenance Tracking Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="label">
+                  <label htmlFor="eq-hours" className="label">
                     Usage Hours
                   </label>
                   <input
+                    id="eq-hours"
                     type="number"
                     name="usageHours"
                     value={formData.usageHours}
@@ -1276,10 +1311,11 @@ const Equipment = () => {
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label htmlFor="eq-interval" className="label">
                     Service Interval (days)
                   </label>
                   <input
+                    id="eq-interval"
                     type="number"
                     name="maintenanceIntervalDays"
                     value={formData.maintenanceIntervalDays}
@@ -1291,10 +1327,11 @@ const Equipment = () => {
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label htmlFor="eq-servicedate" className="label">
                     Last Service Date
                   </label>
                   <input
+                    id="eq-servicedate"
                     type="date"
                     name="lastMaintenanceDate"
                     value={formData.lastMaintenanceDate}
@@ -1306,10 +1343,11 @@ const Equipment = () => {
 
               {/* Image URL */}
               <div>
-                <label className="label">
+                <label htmlFor="eq-image" className="label">
                   Image URL (Optional)
                 </label>
                 <input
+                  id="eq-image"
                   type="url"
                   name="imageUrl"
                   value={formData.imageUrl}
@@ -1321,10 +1359,11 @@ const Equipment = () => {
 
               {/* Description */}
               <div>
-                <label className="label">
+                <label htmlFor="eq-desc" className="label">
                   Description & Specs <span className="text-rose-500">*</span>
                 </label>
                 <textarea
+                  id="eq-desc"
                   name="description"
                   value={formData.description}
                   onChange={handleFormChange}

@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Equipment = require('../models/Equipment');
+const Payment = require('../models/Payment');
 const { getForecast } = require('../utils/weatherService');
-const { evaluateWeather, normalizeDate, dayKey } = require('../utils/schedulingEngine');
+const { evaluateWeather, evaluateMaintenance, normalizeDate, dayKey } = require('../utils/schedulingEngine');
 const { sendNotification } = require('../utils/notificationService');
 
 // @desc    Create a new rental booking request
@@ -79,6 +80,19 @@ const createBooking = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'End date cannot be earlier than start date',
+      });
+    }
+
+    // Reject if the requested window overlaps a scheduled maintenance due date (+3 day buffer),
+    // reusing the same rule the scheduling engine applies (evaluateMaintenance).
+    const maintenanceCheck = evaluateMaintenance(
+      { status: equipment.status, nextMaintenanceDue: equipment.nextMaintenanceDue },
+      { start, end }
+    );
+    if (maintenanceCheck.restriction) {
+      return res.status(400).json({
+        success: false,
+        message: maintenanceCheck.reason,
       });
     }
 
@@ -206,6 +220,12 @@ const getMyBookings = async (req, res) => {
     const today = new Date();
 
     if (req.user.role === 'admin') {
+      if (req.query.customerId && !mongoose.Types.ObjectId.isValid(req.query.customerId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid customer ID format',
+        });
+      }
       query.customer = req.query.customerId || req.user._id;
     }
 
@@ -398,6 +418,17 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
+    // A rental can only start or complete once its payment has been settled (paid).
+    if (status === 'active' || status === 'completed') {
+      const paidPayment = await Payment.findOne({ booking: booking._id, paymentStatus: 'paid' });
+      if (!paidPayment) {
+        return res.status(400).json({
+          success: false,
+          message: `Booking #${booking.bookingNumber} must be paid before it can be marked as ${status}.`,
+        });
+      }
+    }
+
     booking.status = status;
     if (adminRemarks !== undefined) {
       booking.adminRemarks = adminRemarks;
@@ -430,6 +461,7 @@ const updateBookingStatus = async (req, res) => {
       rejected: { type: 'booking_rejected', title: 'Booking rejected', message: `Your booking ${booking.bookingNumber} for ${equipmentName} was not approved. ${adminRemarks ? 'Reason: ' + adminRemarks : ''}` },
       active: { type: 'schedule_change', title: 'Rental started', message: `Your rental ${booking.bookingNumber} for ${equipmentName} is now active.` },
       completed: { type: 'system', title: 'Rental completed', message: `Your rental ${booking.bookingNumber} for ${equipmentName} is complete. Thank you!` },
+      cancelled: { type: 'booking_cancelled', title: 'Booking cancelled', message: `Your booking ${booking.bookingNumber} for ${equipmentName} was cancelled by the equipment owner.` },
     };
     const notif = typeMap[status];
     if (notif) {
@@ -500,7 +532,7 @@ const cancelBooking = async (req, res) => {
     await booking.save();
 
     await sendNotification({
-      user: req.user,
+      user: { _id: booking.customer },
       type: 'booking_cancelled',
       title: 'Booking cancelled',
       message: `Your booking ${booking.bookingNumber} has been cancelled.`,

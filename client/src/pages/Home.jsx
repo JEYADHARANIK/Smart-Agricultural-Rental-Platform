@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../api/axios';
 import {
   Tractor,
   Calendar,
@@ -14,6 +15,26 @@ import {
 } from 'lucide-react';
 
 const Home = () => {
+  const [heroEquipment, setHeroEquipment] = useState(null);
+
+  // Pull a real, currently-available machine for the hero graphic.
+  useEffect(() => {
+    let cancelled = false;
+    const loadHeroEquipment = async () => {
+      try {
+        const res = await api.get('/equipment', { params: { status: 'Available' } });
+        const list = res.data.equipment || [];
+        if (!cancelled) setHeroEquipment(list[0] || null);
+      } catch {
+        if (!cancelled) setHeroEquipment(null);
+      }
+    };
+    loadHeroEquipment();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="page-shell">
       {/* Hero Section */}
@@ -39,7 +60,7 @@ const Home = () => {
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
                 <Link
                   to="/equipment"
-                  className="w-full sm:w-auto bg-forest-500 hover:bg-forest-400 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors flex items-center justify-center space-x-2 text-base"
+                  className="w-full sm:w-auto bg-forest-600 hover:bg-forest-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors flex items-center justify-center space-x-2 text-base"
                 >
                   <Tractor className="w-5 h-5" />
                   <span>Find Equipment</span>
@@ -70,46 +91,55 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Right Hero Graphic Card */}
+            {/* Right Hero Graphic Card (live fleet data) */}
             <div className="lg:pl-8 hidden lg:block">
               <div className="rounded-2xl bg-white/5 border border-white/15 p-6">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-3 bg-white/10 text-forest-200 rounded-xl">
-                        <Tractor className="w-6 h-6" />
+                {heroEquipment ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-3 bg-white/10 text-forest-200 rounded-xl">
+                          <Tractor className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-white text-base">{heroEquipment.name}</h3>
+                          <p className="text-xs text-forest-200">{heroEquipment.category}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-white text-base">John Deere 5075E Tractor</h3>
-                        <p className="text-xs text-forest-200">75 HP • Heavy tillage & harvesting</p>
+                      <span className="bg-forest-500/20 text-forest-100 text-xs font-semibold px-3 py-1 rounded-full border border-forest-400/30">
+                        {heroEquipment.status === 'Available' ? 'Available Now' : heroEquipment.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/10">
+                        <span className="text-xs text-forest-200 block">Daily Rate</span>
+                        <span className="font-bold text-forest-100 text-lg">₹{heroEquipment.dailyRate} / day</span>
+                      </div>
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/10">
+                        <span className="text-xs text-forest-200 block">Location</span>
+                        <span className="font-medium text-white">{heroEquipment.location || 'Farm equipment hub'}</span>
                       </div>
                     </div>
-                    <span className="bg-forest-500/20 text-forest-100 text-xs font-semibold px-3 py-1 rounded-full border border-forest-400/30">
-                      Available Now
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-                      <span className="text-xs text-forest-200 block">Daily Rate</span>
-                      <span className="font-bold text-forest-100 text-lg">₹1200 / day</span>
-                    </div>
-                    <div className="bg-white/5 p-3 rounded-xl border border-white/10">
-                      <span className="text-xs text-forest-200 block">Location</span>
-                      <span className="font-medium text-white">Central Valley Farm Hub</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-forest-950/60 p-4 rounded-xl border border-forest-700/60 space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-forest-100 font-medium">Good conditions expected</span>
-                      <span className="text-forest-200 font-bold">Match 98%</span>
-                    </div>
-                    <div className="w-full bg-forest-800 rounded-full h-2">
-                      <div className="bg-forest-300 h-2 rounded-full w-[98%]"></div>
+                    <div className="bg-forest-950/60 p-4 rounded-xl border border-forest-700/60 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-forest-100 font-medium">Owner-set daily pricing</span>
+                        <span className="text-forest-200 font-bold">Live from fleet</span>
+                      </div>
+                      <p className="text-[11px] text-forest-300">
+                        Book a weather-aware slot and complete your payment online. Rates shown are set by the equipment owner.
+                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4 text-center py-8">
+                    <div className="p-3 bg-white/10 text-forest-200 rounded-xl inline-flex">
+                      <Tractor className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs text-forest-200">Loading the latest fleet availability…</p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -13,7 +13,7 @@ import {
   Check,
   X,
   CreditCard,
-  DollarSign,
+  IndianRupee,
   RotateCcw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -105,7 +105,7 @@ const AdminDashboard = () => {
       <div className="page-container space-y-8">
 
         {/* Admin Header Banner */}
-        <div className="bg-forest-800 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="hero-banner p-8">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="inline-flex items-center space-x-1.5 bg-amber-500/15 text-amber-300 text-xs font-semibold px-3 py-1 rounded-full border border-amber-400/20">
@@ -152,7 +152,7 @@ const AdminDashboard = () => {
                 Total Revenue
               </span>
               <div className="p-3 bg-forest-100 text-forest-600 rounded-xl">
-                <DollarSign className="w-6 h-6" />
+                <IndianRupee className="w-6 h-6" />
               </div>
             </div>
             <div className="flex items-baseline space-x-2">
@@ -294,14 +294,14 @@ const AdminDashboard = () => {
                       <span className="font-extrabold text-forest-600 mr-2">₹{b.totalPrice}</span>
                       <button
                         onClick={() => handleQuickStatus(b._id, 'approved')}
-                        className="bg-forest-600 hover:bg-forest-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center space-x-1 cursor-pointer"
+                        className="btn btn-sm btn-primary"
                       >
                         <Check className="w-3.5 h-3.5" />
                         <span>Approve</span>
                       </button>
                       <button
                         onClick={() => handleQuickStatus(b._id, 'rejected')}
-                        className="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center space-x-1 cursor-pointer"
+                        className="btn btn-sm btn-soft-danger"
                       >
                         <X className="w-3.5 h-3.5" />
                         <span>Reject</span>

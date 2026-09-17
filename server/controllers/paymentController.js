@@ -100,6 +100,9 @@ const verifyRazorpayPayment = async (req, res) => {
     if (booking.customer.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized to pay for this booking' });
     }
+    if (booking.status !== 'approved') {
+      return res.status(400).json({ success: false, message: `Payment can only be verified for approved bookings (current booking status is '${booking.status}')` });
+    }
 
     // Secure server-side signature verification
     const valid = razorpayService.verifySignature({

@@ -9,11 +9,11 @@ import {
   Loader2,
   Ban,
   Filter,
+  FileText,
   User as UserIcon,
   Phone,
   Mail,
   CreditCard,
-  DollarSign,
   ShieldCheck,
   RotateCcw,
   Lock
@@ -58,6 +58,9 @@ const Bookings = () => {
   const [refundingPayment, setRefundingPayment] = useState(null);
   const [refundAdminNotes, setRefundAdminNotes] = useState('');
   const [isRefundSubmitting, setIsRefundSubmitting] = useState(false);
+
+  // Invoice / Receipt Modal
+  const [invoiceBooking, setInvoiceBooking] = useState(null);
 
   // Fetch Bookings & Payments from API
   const fetchBookingsAndPayments = async () => {
@@ -349,6 +352,127 @@ const Bookings = () => {
     onClose: () => setRefundingPayment(null),
     labelledBy: 'refund-modal-title',
   });
+  const { dialogProps: invoiceDialogProps } = useModal({
+    open: !!invoiceBooking,
+    onClose: () => setInvoiceBooking(null),
+    labelledBy: 'invoice-modal-title',
+  });
+
+  // Invoice / Receipt modal content for a booking
+  const renderInvoiceModal = (booking) => {
+    if (!booking) return null;
+
+    const invPayment = paymentMap[booking._id];
+    const invIsPaid = invPayment && invPayment.paymentStatus === 'paid';
+    const invIsRefunded = invPayment && invPayment.paymentStatus === 'refunded';
+    const billing = booking.billing || {};
+    const baseAmount = billing.baseAmount ?? booking.totalPrice;
+    const transportCharge = billing.transportCharge ?? 0;
+    const discount = billing.discount ?? 0;
+    const finalAmount = billing.finalAmount ?? booking.totalPrice;
+
+    return (
+      <div
+        {...invoiceDialogProps}
+        className={`${invoiceDialogProps.className} fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-900/50 animate-fadeIn`}
+      >
+        <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-stone-200 relative max-h-[90vh] overflow-y-auto space-y-5">
+          {/* Header */}
+          <div className="flex justify-between items-start border-b border-stone-100 pb-4">
+            <div>
+              <div className="inline-flex items-center space-x-1.5 bg-forest-50 border border-forest-200 text-forest-700 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                <FileText className="w-3 h-3" />
+                <span>Rental Invoice / Receipt</span>
+              </div>
+              <h3 id="invoice-modal-title" className="text-lg font-bold text-stone-900 mt-2">
+                Invoice {booking.invoiceNumber || 'N/A'}
+              </h3>
+            </div>
+            <button
+              onClick={() => setInvoiceBooking(null)}
+              aria-label="Close dialog"
+              className="text-stone-400 hover:text-stone-600 p-1 rounded-xl hover:bg-stone-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Payment status */}
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wide">Payment Status</span>
+            {invIsPaid ? (
+              <span className="badge-green">
+                <CreditCard className="w-3 h-3 text-forest-600" />
+                <span>Paid</span>
+              </span>
+            ) : invIsRefunded ? (
+              <span className="badge-purple">
+                <RotateCcw className="w-3 h-3 text-purple-600" />
+                <span>Refunded</span>
+              </span>
+            ) : booking.status === 'approved' ? (
+              <span className="badge-amber">
+                <span>Unpaid — awaiting payment</span>
+              </span>
+            ) : (
+              <span className="text-xs text-stone-400 font-normal">N/A</span>
+            )}
+          </div>
+
+          {/* Booking details */}
+          <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-2 text-xs text-stone-700">
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Booking:</span>
+              <span className="font-mono font-bold text-stone-900">#{booking.bookingNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Equipment:</span>
+              <span className="font-semibold text-stone-900 text-right">{booking.equipment?.name || 'Equipment Machine'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Rental Period:</span>
+              <span className="font-semibold text-stone-900">{formatDate(booking.startDate)} - {formatDate(booking.endDate)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Duration:</span>
+              <span className="font-semibold text-stone-900">{booking.totalDays} {booking.totalDays === 1 ? 'day' : 'days'} × ₹{booking.dailyRate}/day</span>
+            </div>
+            {invPayment && (
+              <div className="flex justify-between">
+                <span className="text-stone-500 font-medium">Transaction Ref:</span>
+                <span className="font-mono font-bold text-stone-900">{invPayment.transactionNumber}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Billing breakdown */}
+          <div className="space-y-2 text-xs text-stone-700">
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Base Amount</span>
+              <span className="font-semibold text-stone-900">₹{baseAmount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Transport Charge</span>
+              <span className="font-semibold text-stone-900">₹{transportCharge}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-500 font-medium">Discount</span>
+              <span className="font-semibold text-forest-700">- ₹{discount}</span>
+            </div>
+            <div className="flex justify-between items-baseline pt-2 border-t border-stone-200">
+              <span className="font-bold uppercase tracking-wider text-[11px] text-stone-600">Total Payable</span>
+              <span className="text-xl font-black text-forest-700">₹{finalAmount}</span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-stone-400 leading-relaxed">
+            This is a computer-generated rental invoice for booking #{booking.bookingNumber}.
+            For billing disputes, contact the equipment owner with the transaction reference above.
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="page-shell">
@@ -398,7 +522,7 @@ const Bookings = () => {
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
+                className={`px-3 py-1.5 rounded-xl font-semibold capitalize transition-all cursor-pointer ${statusFilter === s
                     ? 'bg-white text-stone-900 shadow-sm border border-stone-200'
                     : 'text-stone-500 hover:text-stone-900'
                   }`}
@@ -411,9 +535,21 @@ const Bookings = () => {
 
         {/* Content Table / Card Container */}
         {loading ? (
-          <div className="state-block">
-            <Loader2 className="state-icon animate-spin" />
-            <p className="text-sm font-medium text-stone-600">Loading bookings and transaction records from database...</p>
+          <div className="card overflow-hidden" aria-label="Loading bookings">
+            <div className="p-6 border-b border-stone-100">
+              <div className="skeleton h-5 w-64" />
+            </div>
+            <div className="divide-y divide-stone-100">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="p-6 space-y-3">
+                  <div className="skeleton h-4 w-2/5" />
+                  <div className="skeleton h-3 w-full" />
+                  <div className="skeleton h-3 w-4/5" />
+                  <div className="skeleton h-8 w-56" />
+                </div>
+              ))}
+            </div>
+            <p className="sr-only">Loading bookings and transaction records from database...</p>
           </div>
         ) : filteredBookings.length === 0 ? (
           <div className="state-block">
@@ -491,7 +627,7 @@ const Bookings = () => {
                         {/* Equipment Info */}
                         <td className="table-td px-6 py-4 font-medium text-stone-900">
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-forest-50 text-forest-600 rounded-lg shrink-0">
+                            <div className="p-2 bg-forest-50 text-forest-600 rounded-xl shrink-0">
                               <Tractor className="w-4 h-4" />
                             </div>
                             <div>
@@ -518,7 +654,7 @@ const Bookings = () => {
                             </div>
                           ) : (
                             <span className="font-bold text-stone-800 text-xs">
-                              ${item.dailyRate}/day
+                              ₹{item.dailyRate}/day
                             </span>
                           )}
                         </td>
@@ -546,7 +682,7 @@ const Bookings = () => {
                               <span>{item.status}</span>
                             </span>
                             {item.adminRemarks && (
-                              <p className="text-[10px] text-rose-600 font-medium italic line-clamp-1 max-w-[150px]">
+                              <p className="text-[11px] text-rose-600 font-medium italic line-clamp-1 max-w-[150px]">
                                 Note: {item.adminRemarks}
                               </p>
                             )}
@@ -561,7 +697,7 @@ const Bookings = () => {
                                 <CreditCard className="w-3 h-3 text-forest-600" />
                                 <span>Paid</span>
                               </span>
-                              <span className="text-[10px] font-mono text-stone-500 block font-semibold">
+                              <span className="text-[11px] font-mono text-stone-500 block font-semibold">
                                 {payment.transactionNumber}
                               </span>
                             </div>
@@ -571,7 +707,7 @@ const Bookings = () => {
                                 <RotateCcw className="w-3 h-3 text-purple-600" />
                                 <span>Refunded</span>
                               </span>
-                              <span className="text-[10px] font-mono text-stone-500 block font-semibold">
+                              <span className="text-[11px] font-mono text-stone-500 block font-semibold">
                                 {payment.transactionNumber}
                               </span>
                             </div>
@@ -588,19 +724,40 @@ const Bookings = () => {
                         <td className="table-td px-6 py-4">
                           {isAdmin ? (
                             <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => setInvoiceBooking(item)}
+                                title="View invoice / receipt"
+                                className="btn btn-sm btn-outline"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>Invoice</span>
+                              </button>
+
+                              {(item.status === 'pending' || item.status === 'approved') && (
+                                <>
+<button
+                                  onClick={() => handleCancelBooking(item)}
+                                  disabled={isActionSubmitting}
+                                  className="btn btn-sm btn-outline"
+                                >
+                                  Cancel
+                                </button>
+                                </>
+                              )}
+
                               {item.status === 'pending' && (
                                 <>
                                   <button
                                     onClick={() => handleUpdateStatus(item._id, 'approved')}
                                     disabled={isActionSubmitting}
-                                    className="bg-forest-700 hover:bg-forest-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                                    className="btn btn-sm btn-primary"
                                   >
                                     Approve
                                   </button>
                                   <button
                                     onClick={() => setRejectingBooking(item)}
                                     disabled={isActionSubmitting}
-                                    className="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                                    className="btn btn-sm btn-soft-danger"
                                   >
                                     Reject
                                   </button>
@@ -610,7 +767,7 @@ const Bookings = () => {
                                 <button
                                   onClick={() => handleUpdateStatus(item._id, 'active')}
                                   disabled={isActionSubmitting}
-                                  className="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                                  className="btn btn-sm btn-primary"
                                 >
                                   Mark Active
                                 </button>
@@ -619,7 +776,7 @@ const Bookings = () => {
                                 <button
                                   onClick={() => handleUpdateStatus(item._id, 'completed')}
                                   disabled={isActionSubmitting}
-                                  className="bg-stone-700 hover:bg-stone-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                                  className="btn btn-sm bg-stone-700 hover:bg-stone-800 text-white"
                                 >
                                   Complete
                                 </button>
@@ -630,7 +787,7 @@ const Bookings = () => {
                                 <button
                                   onClick={() => setRefundingPayment(payment)}
                                   disabled={isActionSubmitting}
-                                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer"
+                                  className="btn btn-sm bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200"
                                 >
                                   <RotateCcw className="w-3 h-3" />
                                   <span>Issue Refund</span>
@@ -639,6 +796,15 @@ const Bookings = () => {
                             </div>
                           ) : (
                             <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => setInvoiceBooking(item)}
+                                title="View invoice / receipt"
+                                className="btn btn-sm btn-outline"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>Invoice</span>
+                              </button>
+
                               {/* Customer Pay Now Button for Approved Unpaid Bookings */}
                               {isEligibleForPayment && (
                                 <button
@@ -648,7 +814,7 @@ const Bookings = () => {
                                     setPaymentError(null);
                                     setCheckoutStep('select');
                                   }}
-                                  className="bg-forest-700 hover:bg-forest-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-extrabold shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
+                                  className="btn btn-sm btn-primary"
                                 >
                                   <CreditCard className="w-3.5 h-3.5" />
                                   <span>Pay Now (₹{item.totalPrice})</span>
@@ -658,12 +824,12 @@ const Bookings = () => {
                               {/* Customer Cancel Action */}
                               {(item.status === 'pending' || item.status === 'approved') && (
                                 <button
-                                  onClick={() => handleCancelBooking(item)}
-                                  disabled={isActionSubmitting}
-                                  className="bg-stone-100 hover:bg-rose-50 text-stone-600 hover:text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-stone-200 cursor-pointer disabled:opacity-50"
-                                >
-                                  Cancel Request
-                                </button>
+                                onClick={() => handleCancelBooking(item)}
+                                disabled={isActionSubmitting}
+                                className="btn btn-sm btn-outline"
+                              >
+                                Cancel Request
+                              </button>
                               )}
                             </div>
                           )}
@@ -688,7 +854,7 @@ const Bookings = () => {
             {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-stone-100 pb-3">
               <div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                   checkoutStep === 'simulated'
                     ? 'text-amber-800 bg-amber-50 border border-amber-200'
                     : 'text-forest-700 bg-forest-50 border border-forest-200'
@@ -702,7 +868,7 @@ const Bookings = () => {
               <button
                 onClick={() => setPayingBooking(null)}
                 aria-label="Close dialog"
-                className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors"
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -742,7 +908,7 @@ const Bookings = () => {
               className="space-y-4"
             >
               <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
+                <label className="label mb-2">
                   Select Payment Method <span className="text-rose-500">*</span>
                 </label>
                 <div className="space-y-2">
@@ -839,10 +1005,11 @@ const Bookings = () => {
             </p>
 
             <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+              <label htmlFor="rejection-remarks" className="label">
                 Rejection Remarks
               </label>
               <textarea
+                id="rejection-remarks"
                 value={adminRemarks}
                 onChange={(e) => setAdminRemarks(e.target.value)}
                 rows="3"
@@ -893,10 +1060,11 @@ const Bookings = () => {
 
             <form onSubmit={handleIssueRefund} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                <label htmlFor="refund-notes" className="label">
                   Admin Refund Notes (Optional)
                 </label>
                 <textarea
+                  id="refund-notes"
                   value={refundAdminNotes}
                   onChange={(e) => setRefundAdminNotes(e.target.value)}
                   rows="3"
@@ -916,8 +1084,7 @@ const Bookings = () => {
                 <button
                   type="submit"
                   disabled={isRefundSubmitting}
-                  className="btn"
-                  style={{ backgroundColor: '#7e22ce', color: '#fff' }}
+                  className="btn btn-purple"
                 >
                   Confirm Refund
                 </button>
@@ -926,6 +1093,9 @@ const Bookings = () => {
           </div>
         </div>
       )}
+
+      {/* Invoice / Receipt Modal */}
+      {renderInvoiceModal(invoiceBooking)}
 
     </div>
   );

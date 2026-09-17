@@ -24,13 +24,23 @@ const getAdminAnalytics = async (req, res) => {
     const reservedCount = equipmentList.filter((e) => e.status === 'Rented').length;
     const maintenanceCount = equipmentList.filter((e) => e.status === 'Maintenance').length;
     const pendingBookings = bookings.filter((b) => b.status === 'pending').length;
-    const activeRentals = bookings.filter((b) => b.status === 'active').length;
+    // Active rentals = rentals physically in progress today (status 'active') plus approved
+    // rentals whose booking window covers today (same semantics as the dashboard card).
+    const activeRentals = bookings.filter(
+      (b) => b.status === 'active' || (b.status === 'approved' && new Date(b.startDate) <= today && new Date(b.endDate) >= today)
+    ).length;
     const completedRentals = bookings.filter((b) => b.status === 'completed').length;
     const cancelledBookings = bookings.filter((b) => b.status === 'cancelled').length;
 
     const paidPayments = payments.filter((p) => p.paymentStatus === 'paid');
-    const paidPending = payments.filter((p) => p.paymentStatus === 'pending');
     const totalRevenue = paidPayments.reduce((s, p) => s + (p.amount || 0), 0);
+
+    // Payments outstanding = approved bookings that have no settled ('paid') payment yet.
+    const paidBookingIds = new Set(paidPayments.map((p) => p.booking && p.booking.toString()).filter(Boolean));
+    const pendingPaymentBookings = bookings.filter(
+      (b) => b.status === 'approved' && !paidBookingIds.has(b._id.toString())
+    );
+    const pendingPaymentsAmount = pendingPaymentBookings.reduce((s, b) => s + (b.totalPrice || 0), 0);
 
     // Monthly revenue (last 6 months)
     const monthlyRevenue = [];
@@ -62,10 +72,10 @@ const getAdminAnalytics = async (req, res) => {
       });
     }
 
-    // Most rented equipment
+    // Most rented equipment (only executed rentals: active + completed)
     const equipmentRentalCount = {};
     bookings
-      .filter((b) => b.status === 'completed' || b.status === 'active' || b.status === 'approved')
+      .filter((b) => b.status === 'completed' || b.status === 'active')
       .forEach((b) => {
         const key = b.equipment ? b.equipment.toString() : 'unknown';
         equipmentRentalCount[key] = (equipmentRentalCount[key] || 0) + 1;
@@ -78,10 +88,13 @@ const getAdminAnalytics = async (req, res) => {
       .sort((a, b) => b.rentals - a.rentals)
       .slice(0, 5);
 
-    // Equipment utilization (booked days / 30 days)
+    // Equipment utilization (booked days / 30 days) based on executed rentals only
     const utilization = equipmentList.map((eq) => {
       const eqBookings = bookings.filter(
-        (b) => b.equipment && b.equipment.toString() === eq._id.toString() && b.status !== 'cancelled' && b.status !== 'rejected'
+        (b) =>
+          b.equipment &&
+          b.equipment.toString() === eq._id.toString() &&
+          (b.status === 'active' || b.status === 'completed')
       );
       let bookedDays = 0;
       eqBookings.forEach((b) => {
@@ -121,8 +134,8 @@ const getAdminAnalytics = async (req, res) => {
           completedRentals,
           cancelledBookings,
           totalRevenue,
-          pendingPaymentsAmount: paidPending.reduce((s, p) => s + (p.amount || 0), 0),
-          pendingPaymentsCount: paidPending.length,
+          pendingPaymentsAmount,
+          pendingPaymentsCount: pendingPaymentBookings.length,
           upcomingRentals: bookings.filter((b) => b.status === 'approved' && new Date(b.startDate) > today).length,
         },
         monthlyRevenue,

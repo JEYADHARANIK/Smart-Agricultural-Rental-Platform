@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import API from '../api/axios';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Tractor, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -96,7 +96,7 @@ const ResetPassword = () => {
               </p>
               <Link
                 to="/login"
-                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 transition-colors w-full"
+                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-600 hover:bg-forest-700 transition-colors w-full"
               >
                 <span>Back to Login</span>
               </Link>
@@ -113,7 +113,7 @@ const ResetPassword = () => {
               </p>
               <Link
                 to="/forgot-password"
-                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 transition-colors w-full mb-3"
+                className="inline-flex justify-center items-center py-3 px-5 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-600 hover:bg-forest-700 transition-colors w-full mb-3"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 <span>Request New Reset Link</span>
@@ -139,7 +139,7 @@ const ResetPassword = () => {
               <form className="space-y-5" onSubmit={handleSubmit}>
                 {/* New Password Field */}
                 <div>
-                  <label htmlFor="password" className="block text-xs font-semibold tracking-wide text-stone-700 uppercase mb-1.5">
+                  <label htmlFor="password" className="label">
                     New Password
                   </label>
                   <div className="relative rounded-xl shadow-xs">
@@ -173,7 +173,7 @@ const ResetPassword = () => {
 
                 {/* Confirm Password Field */}
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-xs font-semibold tracking-wide text-stone-700 uppercase mb-1.5">
+                  <label htmlFor="confirmPassword" className="label">
                     Confirm New Password
                   </label>
                   <div className="relative rounded-xl shadow-xs">
@@ -210,7 +210,7 @@ const ResetPassword = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-900 hover:bg-forest-800 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-700 transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
+                    className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-forest-600 hover:bg-forest-700 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-forest-600 transition-all duration-150 disabled:opacity-85 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <div className="w-full flex flex-col items-center justify-center py-0.5">

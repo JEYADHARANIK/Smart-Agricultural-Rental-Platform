@@ -48,13 +48,25 @@ async function createOrder({ amount, currency = 'INR', receipt }) {
 
 /**
  * Verify Razorpay payment signature cryptographically server-side.
+ * Returns false (never throws) when inputs are missing/malformed or the signature mismatches.
  */
 function verifySignature({ orderId, paymentId, signature }) {
+  if (!orderId || !paymentId || typeof signature !== 'string' || !signature || !KEY_SECRET) {
+    return false;
+  }
   const expected = crypto
     .createHmac('sha256', KEY_SECRET)
     .update(`${orderId}|${paymentId}`)
     .digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
+  if (signature.length !== expected.length) {
+    return false;
+  }
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const providedBuf = Buffer.from(signature, 'hex');
+  if (expectedBuf.length !== providedBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 module.exports = {

@@ -147,6 +147,8 @@ const Equipment = () => {
         usageHours: equipment.usageHours || 0,
         maintenanceIntervalDays: equipment.maintenanceIntervalDays || 90,
         lastMaintenanceDate: equipment.lastMaintenanceDate ? equipment.lastMaintenanceDate.slice(0, 10) : '',
+        latitude: equipment.coordinates && equipment.coordinates.lat != null ? equipment.coordinates.lat : '',
+        longitude: equipment.coordinates && equipment.coordinates.lng != null ? equipment.coordinates.lng : '',
       });
     } else {
       setEditingEquipment(null);
@@ -161,6 +163,8 @@ const Equipment = () => {
         usageHours: 0,
         maintenanceIntervalDays: 90,
         lastMaintenanceDate: '',
+        latitude: '',
+        longitude: '',
       });
     }
     setIsModalOpen(true);
@@ -287,6 +291,14 @@ const Equipment = () => {
       const payload = {
         ...formData,
         dailyRate: Number(formData.dailyRate),
+        // Backend expects nested coordinates: { lat, lng } (see equipmentController).
+        coordinates:
+          formData.latitude !== '' && formData.longitude !== ''
+            ? {
+                lat: Number(formData.latitude),
+                lng: Number(formData.longitude),
+              }
+            : null,
       };
 
       if (editingEquipment) {
@@ -1098,7 +1110,83 @@ const Equipment = () => {
                                 {cls === 'NOT RECOMMENDED' ? 'Not Recommended' : (cls === 'BEST' ? 'Good conditions expected' : cls === 'USABLE' ? 'Moderate conditions' : (cls || 'Unknown'))}
                               </span>
                               <p className="text-xs text-stone-600 mt-1">{slotAnalysis.requestedSlot.summary || cfg.note}</p>
+
+                              {/* Explainability — real reasons returned by the scheduling engine */}
+                              {Array.isArray(slotAnalysis.requestedSlot.reasons) && slotAnalysis.requestedSlot.reasons.length > 0 && (
+                                <ul className="mt-2 space-y-1" aria-label="Why this slot was ranked">
+                                  {slotAnalysis.requestedSlot.reasons.map((reason, i) => (
+                                    <li
+                                      key={i}
+                                      className="text-[11px] text-stone-500 flex items-start space-x-1.5"
+                                    >
+                                      <CheckCircle className="w-3 h-3 text-forest-600 shrink-0 mt-0.5" />
+                                      <span>{reason}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Daily forecast breakdown — real per-day data the engine already computed */}
+                      {(() => {
+                        const fc = slotAnalysis.dailyForecast;
+                        const days = fc && Array.isArray(fc.daily) ? fc.daily : [];
+                        if (!days.length) return null;
+
+                        const dayIcon = (m) =>
+                          m && /(rain|drizzle|thunder|storm)/i.test(m)
+                            ? CloudRain
+                              : m && /(clear|sun)/i.test(m)
+                                ? Sun
+                                : CloudSun;
+
+                        return (
+                          <div className="px-4 sm:px-5 py-3 border-t border-stone-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                                Daily weather by date
+                              </span>
+                              <span className="text-[11px] text-stone-400 capitalize">{fc.timezone || 'local timezone'}</span>
+                            </div>
+                            {fc.available === false ? (
+                              <p className="text-[11px] text-stone-500 italic bg-stone-100 rounded-xl px-3 py-2">
+                                Weather information is currently unavailable.
+                              </p>
+                            ) : (
+                              <ul className="space-y-1.5" aria-label="Daily weather forecast">
+                                {days.map((d, i) => {
+                                  const Icon = dayIcon(d.conditionMain);
+                                  const rainNote = d.rainProbability != null && d.rainProbability >= 40;
+                                  return (
+                                    <li key={i} className="flex items-center justify-between text-[11px]">
+                                      <span className="text-stone-600 font-medium flex items-center space-x-2 min-w-0">
+                                        <Icon className={`w-3.5 h-3.5 shrink-0 ${d.severe ? 'text-rose-500' : 'text-forest-600'}`} />
+                                        <span className="truncate">
+                                          {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </span>
+                                        <span className="text-[10px] text-stone-400 capitalize truncate">{d.condition || d.conditionMain || '—'}</span>
+                                      </span>
+                                      <span className="flex items-center space-x-3 shrink-0 ml-3">
+                                        {d.tempMin != null && d.tempMax != null && (
+                                          <span className="text-stone-500">{Math.round(d.tempMin)}°–{Math.round(d.tempMax)}°</span>
+                                        )}
+                                        {d.rainProbability != null && (
+                                          <span className={rainNote || d.severe ? 'text-rose-600 font-semibold' : 'text-stone-500'}>
+                                            {d.rainProbability}% rain
+                                          </span>
+                                        )}
+                                        {d.severe && (
+                                          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wide">Severe</span>
+                                        )}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
                           </div>
                         );
                       })()}
@@ -1286,6 +1374,42 @@ const Equipment = () => {
                     value={formData.location}
                     onChange={handleFormChange}
                     placeholder="e.g. Coimbatore District Hub"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="eq-latitude" className="label">
+                    Latitude
+                  </label>
+                  <input
+                    id="eq-latitude"
+                    type="number"
+                    name="latitude"
+                    value={formData.latitude}
+                    onChange={handleFormChange}
+                    placeholder="e.g. 11.0158"
+                    min="-90"
+                    max="90"
+                    step="any"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="eq-longitude" className="label">
+                    Longitude
+                  </label>
+                  <input
+                    id="eq-longitude"
+                    type="number"
+                    name="longitude"
+                    value={formData.longitude}
+                    onChange={handleFormChange}
+                    placeholder="e.g. 76.9765"
+                    min="-180"
+                    max="180"
+                    step="any"
                     className="input"
                   />
                 </div>

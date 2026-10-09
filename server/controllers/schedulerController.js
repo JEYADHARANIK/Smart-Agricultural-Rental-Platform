@@ -82,6 +82,9 @@ const analyzeSlot = async (req, res) => {
       weatherReason: forecast.reason || null,
       explanation,
       ...analysis,
+      // Expose the already-computed per-day forecast so the UI can visualize it.
+      // No recomputation, no new algorithm — this is the same daily[] the engine used.
+      dailyForecast: forecast,
       requestedSlot: {
         ...analysis.requestedSlot,
         weatherAvailable: forecast.available,

@@ -31,11 +31,11 @@ async function getForecast({ lat = null, lng = null, locationText = '', days = 7
     };
   }
 
-  const maxDays = Math.min(8, Math.max(0, days));
-  const exclude = 'current,minutely,hourly,alerts';
+  const maxDays = Math.min(5, Math.max(0, days));
+  // Free OpenWeather 5-day / 3-hour forecast API — no billing, no One Call 3.0.
   const url =
-    `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lng}` +
-    `&exclude=${exclude}&units=metric&appid=${OPENWEATHER_API_KEY}`;
+    `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}` +
+    `&units=metric&appid=${OPENWEATHER_API_KEY}`;
 
   try {
     const res = await fetch(url);
@@ -48,21 +48,55 @@ async function getForecast({ lat = null, lng = null, locationText = '', days = 7
       };
     }
     const data = await res.json();
-    const daily = Array.isArray(data.daily) ? data.daily.slice(0, maxDays) : [];
+    const list = Array.isArray(data.list) ? data.list : [];
+
+    // Aggregate the free API's 3-hour entries into per-day summaries.
+    // Every value below comes from real list[] data; absent values stay null —
+    // nothing is fabricated when the API does not supply it.
+    const byDay = new Map();
+    list.forEach((e) => {
+      const day = new Date(e.dt * 1000).toISOString().slice(0, 10);
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(e);
+    });
+
+    const dayEntries = Array.from(byDay.values()).slice(0, maxDays);
+    const daily = dayEntries.map((entries) => {
+      const dayTs = entries[0].dt * 1000;
+      const popVals = entries
+        .map((e) => (e.pop != null ? Math.round(e.pop * 100) : null))
+        .filter((v) => v != null);
+      const rainVals = entries
+        .map((e) => (e.rain && e.rain['3h'] != null ? e.rain['3h'] : null))
+        .filter((v) => v != null);
+      const temps = entries
+        .map((e) => (e.main && e.main.temp != null ? e.main.temp : null))
+        .filter((v) => v != null);
+
+      // Representative entry: worst weather (severe first, then highest rain pop).
+      const rep = entries.reduce((worst, e) => {
+        const grade = (e) =>
+          (e.pop != null ? e.pop : 0) + (isSevere(e.weather && e.weather[0]) ? 10 : 0);
+        return grade(e) > grade(worst) ? e : worst;
+      }, entries[0]);
+
+      return {
+        date: new Date(dayTs).toISOString(),
+        rainProbability: popVals.length ? Math.max(...popVals) : null,
+        precipitation: rainVals.length ? rainVals.reduce((a, b) => a + b, 0) : null,
+        condition: (rep.weather && rep.weather[0] && rep.weather[0].description) || '',
+        conditionMain: (rep.weather && rep.weather[0] && rep.weather[0].main) || '',
+        tempMin: temps.length ? Math.min(...temps) : null,
+        tempMax: temps.length ? Math.max(...temps) : null,
+        severe: entries.some((e) => isSevere(e.weather && e.weather[0])),
+      };
+    });
+
     return {
       available: true,
       source: 'openweathermap',
-      timezone: data.timezone_offset || 0,
-      daily: daily.map((d) => ({
-        date: new Date(d.dt * 1000).toISOString(),
-        rainProbability: d.pop != null ? Math.round(d.pop * 100) : null,
-        precipitation: d.rain != null ? d.rain : 0,
-        condition: (d.weather && d.weather[0] && d.weather[0].description) || '',
-        conditionMain: (d.weather && d.weather[0] && d.weather[0].main) || '',
-        tempMin: d.temp && d.temp.min != null ? d.temp.min : null,
-        tempMax: d.temp && d.temp.max != null ? d.temp.max : null,
-        severe: isSevere(d.weather && d.weather[0]),
-      })),
+      timezone: (data.city && data.city.timezone) != null ? data.city.timezone : 0,
+      daily,
     };
   } catch (error) {
     return { available: false, reason: `Weather API failure: ${error.message}` };
